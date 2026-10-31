@@ -31,13 +31,15 @@ Now ask your AI: *"Who am I on GitHub?"* The AI asks oathkey for `GET /user`; oa
 
 ## When your AI writes normal code
 
-Asking oathkey to make a call works when the AI talks to oathkey (through MCP or `serve`). If instead your AI writes an ordinary program that uses a vendor's SDK (for example `openai.OpenAI()` reading `OPENAI_API_KEY`), that program needs the key itself. Today you run it yourself with:
+Asking oathkey to make a call works when the AI talks to oathkey (through MCP or `serve`). If instead your AI writes an ordinary program that uses a vendor's SDK (for example `openai.OpenAI()` reading `OPENAI_API_KEY`), run that program through the proxy:
 
 ```
-oathkey run openai -- python app.py
+oathkey proxy -- python app.py
 ```
 
-`run` puts the key in that one program's environment only (not in a file) and scrubs the key from the program's output. The program itself does see the key, so use `run` yourself; do not hand it to an AI that can run shell commands. A proxy mode, where unchanged SDKs talk to a local oathkey address and the program does not get the key, is planned but not built yet.
+The program gets `OPENAI_BASE_URL`, `ANTHROPIC_BASE_URL`, `GROQ_BASE_URL` and `TOGETHER_BASE_URL` pointing at a local oathkey address on this computer, and its `*_API_KEY` is a throwaway password for that address, not your key. oathkey adds the real key on the way out and scrubs it from the answers. If oathkey stops, the program's calls fail instead of going out on their own. `--print-env` prints the variables for a tool you start yourself. There is no certificate trickery: this works only for SDKs that let you change their base address (OpenAI, Anthropic, Groq, Together); other vendors stay on brokered calls.
+
+For other programs, `oathkey run openai -- python app.py` puts the key in that one program's environment only and scrubs it from the program's output. That program does see the key, so use `run` yourself; do not hand it to an AI that can run shell commands.
 
 ## The permission windows
 
@@ -83,7 +85,7 @@ The threat model, with links to the code that does each job, is in [docs/THREAT_
 |---|---|
 | `oathkey selftest` | Runs oathkey's rules against simulated attacks, using a made-up key and a pretend server: a server that echoes the key in disguise, tricky addresses, names that point inside your network, writes without permission, edits to the log. Prints how many it stopped (`--verbose` lists each) and exits with an error if any gets through. It does not test the live network layer, so treat it as a check of the rules, not a security audit. |
 | `oathkey doctor` | One-paste health check: keychain, activity log, which AI tools it is plugged into, and a quick self-attack run. |
-| `oathkey scan` | Finds API keys lying in your project files and AI-tool settings. It prints only a shortened form of each key. |
+| `oathkey scan` | Finds API keys lying in your project files and AI-tool settings, including the MCP server configs of Claude Desktop, Claude Code, Cursor, VS Code, Windsurf, Codex, Gemini and Zed (`--no-mcp` skips those). It prints only a shortened form of each key. `--bundle dist/` or `--bundle https://your-app.com` shows secret keys your website ships to every visitor (`VITE_`, `NEXT_PUBLIC_`, `REACT_APP_`, `EXPO_PUBLIC_` and known key formats). |
 | `oathkey scan-git` | Looks through git history for keys; `--staged` checks only what is about to be committed, `--install-hook` blocks such commits. |
 | `oathkey audit verify` | Checks the activity log was not edited, cut short or deleted. If it did not check out, `audit reset` starts a fresh log and keeps the old one. |
 
@@ -105,6 +107,9 @@ oathkey uses only Python's own standard library, and a test in the repository ([
 - `overview` - what is connected and whether the activity log is intact. (`status` shows where each key lives and how old it is.)
 - `audit show` - the last calls, with a warning if the log does not check out.
 - `rotate <service>` - replace a stored key.
+- `caps set openai --calls-day 500 --tokens-day 200000 --calls-session 100` - a spending limit per key, counted across every program using it (`--clear` removes it; `caps show` lists them). The limit can be passed by one call already in flight.
+- `stop` / `resume` - a kill switch: `stop` refuses every brokered and proxied call at once; `resume` (asks you first) lets them through again.
+- `policy show` / `policy approve` - an `oathkey.policy` file lists the methods and paths each service may use. A project's file can only narrow your own. A new or changed file is obeyed only after you approve it.
 - `forget <service>` - remove a stored key.
 
 **Security**
@@ -118,6 +123,8 @@ oathkey uses only Python's own standard library, and a test in the repository ([
 - `mcp` - the MCP server your AI app starts for you. Besides brokered calls it has `capture_key`: your AI opens the key page, you click Copy, and oathkey takes the key from the clipboard without passing it to the AI. You allow this per service with `allow-agent <service>`.
 - `init` / `setup` - write `oathkey.json` for a project, then connect every service it needs.
 - `remote`, `trust-server`, `deploy` - use a key on your own server over ssh.
+- `wrap <client> <server>` - move a key out of an MCP server's settings into the keychain; the server is then started through `oathkey run`. `--all --dry-run` previews every server, `--undo` restores the old settings, `--file` picks a config file.
+- `proxy -- <command>` - see "When your AI writes normal code".
 - `add` - make your own service recipe. `find` - look for free public APIs.
 
 Coming from the old `safeeasyapi` name? 0.8.0 is a fresh start: nothing is migrated. Re-run `oathkey get <service>` and `oathkey install`, and remove any old `safeeasyapi` hook or MCP entry by hand.

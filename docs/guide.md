@@ -418,6 +418,18 @@ oathkey find <query>                # find free public APIs for a task
 oathkey find <query> --category <name>   # only that category (part of its name)
 oathkey find <query> --refresh      # download the directory again now
 oathkey mcp                         # stdio MCP server (for Claude Code)
+oathkey proxy -- <command>          # run a program whose SDK talks to a local oathkey address (OPENAI/ANTHROPIC/GROQ/TOGETHER_BASE_URL); its *_API_KEY is a throwaway password
+oathkey proxy --print-env           # print those variables for a tool you start yourself
+oathkey caps show                   # spending limits per key and today's usage
+oathkey caps set <service> --calls-session N --calls-day N --tokens-day N   # limit a key (counted across every program)
+oathkey caps set <service> --clear  # remove that key's limits
+oathkey stop | resume               # kill switch for every brokered and proxied call (resume asks you)
+oathkey policy show | approve       # oathkey.policy: allowed methods and paths per service; a new or changed file needs your approval
+oathkey scan --no-mcp               # skip the AI tools' MCP server configs (scanned by default)
+oathkey scan --bundle dist/|https://your-app.com   # secret keys a website ships to every visitor
+oathkey wrap <client> <server> [--file CONFIG] [--dry-run]   # move an MCP server's key into the keychain; it then starts through `oathkey run`
+oathkey wrap --all --dry-run        # preview every MCP server
+oathkey wrap <client> <server> --undo   # put the old settings back
 ```
 
 Output can be piped (`oathkey list | head -1`): when the reader
