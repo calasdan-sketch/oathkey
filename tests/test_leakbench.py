@@ -120,10 +120,10 @@ class RunnerWithOathkeyHook(unittest.TestCase):
         r = run_probe(self._probe("proc-self-environ"), self.sbx, self.hook, "oathkey-hook")
         self.assertEqual(r.status, "blocked")
 
-    def test_hook_leaks_plain_env_dump(self):
-        # honest gap: `env` names no .env, so the hook stays out of the way
+    def test_hook_blocks_plain_env_dump(self):
+        # closed in 0.9.0: the hook refuses commands that print the environment
         r = run_probe(self._probe("env-dump"), self.sbx, self.hook, "oathkey-hook")
-        self.assertEqual(r.status, "leaked")
+        self.assertEqual(r.status, "blocked")
 
     def test_hook_leaks_pem_read(self):
         r = run_probe(self._probe("read-pem"), self.sbx, self.hook, "oathkey-hook")

@@ -261,7 +261,22 @@ def store(service: str, env_var: str, key: str, backend: str | None = None,
         raise KeychainError("reading the entry back did not give the key "
                             "that was stored")
     del back
+    _fingerprint("remember", f"{service}/{env_var}", key)
     return backend
+
+
+def _fingerprint(action: str, name: str, key: str | None = None) -> None:
+    """Keep the hook's fingerprint file in step with the keychain, so the
+    PostToolUse scrubber can recognise a stored key without reading it. Best
+    effort: a fingerprint problem never stops a save or a delete."""
+    try:
+        from . import scrub
+        if action == "remember":
+            scrub.remember_key(name, key)
+        else:
+            scrub.forget_key(name)
+    except Exception as e:  # noqa: BLE001 - the key is saved; say why masking may miss it
+        sys.stderr.write(f"oathkey: could not update key fingerprints ({type(e).__name__})\n")
 
 
 def read(service: str, env_var: str, backend: str | None = None,
@@ -281,8 +296,11 @@ def delete(service: str, env_var: str, backend: str | None = None,
     backend = backend or detect_backend()
     if backend is None:
         return False
-    return _dispatch("delete", backend, service, env_var, None, run,
+    gone = _dispatch("delete", backend, service, env_var, None, run,
                      ctypes_mod) is None
+    if gone:
+        _fingerprint("forget", f"{service}/{env_var}")
+    return gone
 
 
 class CannotRun(Exception):
