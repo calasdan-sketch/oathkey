@@ -156,7 +156,7 @@ def _status(variables, env_file: str, store: str) -> str:
 
 
 def _project_manifest(root: str):
-    path = os.path.join(root, manifest_mod.FILE_NAME)
+    path = manifest_mod.path_in(root)
     if not os.path.isfile(path):
         return None
     try:

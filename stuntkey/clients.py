@@ -16,6 +16,7 @@ import tempfile
 import time
 
 NAME = "stuntkey"
+LEGACY_NAME = "oathkey"     # the entry 0.8 wrote: `install` replaces it
 LABELS = {"claude-desktop": "Claude Desktop", "cursor": "Cursor",
           "claude-code": "Claude Code", "vscode": "VS Code"}
 
@@ -107,9 +108,20 @@ def plan(path: str, key: str) -> dict:
             raise ValueError("that file is not a JSON object; not touching it")
     entry = server_entry()
     new = merged(existing, key, entry)
+    legacy = new[key].pop(LEGACY_NAME, None)
     return {"path": path, "present": present, "existing": existing, "new": new,
-            "already": existing.get(key, {}).get(NAME) == entry,
-            "others": sorted(k for k in existing.get(key, {}) if k != NAME)}
+            "legacy": legacy, "entry": entry,
+            "already": existing.get(key, {}).get(NAME) == entry and legacy is None,
+            "others": sorted(k for k in existing.get(key, {}) if k not in (NAME, LEGACY_NAME))}
+
+
+def legacy_diff(p: dict) -> str:
+    """The change from 0.8's "oathkey" entry to ours, as a unified diff."""
+    import difflib
+    old = json.dumps({LEGACY_NAME: p["legacy"]}, indent=2).splitlines()
+    new = json.dumps({NAME: p["entry"]}, indent=2).splitlines()
+    return "".join(f"      {line}\n" for line in difflib.unified_diff(
+        old, new, "old (oathkey 0.8)", "new (stuntkey)", lineterm=""))
 
 
 def apply(p: dict) -> str | None:
@@ -163,6 +175,9 @@ def run(names, yes: bool, ask=input, out=print, **kw) -> int:
             continue
         out(f"  {n}: will add '{NAME}' to {path}"
             + (f" (keeps your other servers: {', '.join(p['others'])})" if p["others"] else ""))
+        if p.get("legacy") is not None:
+            out(f"    and replace the old '{LEGACY_NAME}' entry (0.8):\n"
+                + legacy_diff(p).rstrip("\n"))
         if not yes and ask(f"    go ahead? [y/N] ").strip().lower() not in ("y", "yes"):
             out("    skipped.")
             continue

@@ -15,13 +15,13 @@ class KeychainKeepsFingerprints(unittest.TestCase):
         self.fp = os.path.join(tempfile.mkdtemp(), "fingerprints.json")
         self.box = {}
 
-        def dispatch(action, backend, service, env_var, key, run, ctypes_mod):
+        def dispatch(action, backend, service, env_var, key, run, ctypes_mod, prefix=keychain.TARGET_PREFIX):
             if action == "store":
-                self.box[(service, env_var)] = key
+                self.box[(prefix, service, env_var)] = key
             elif action == "read":
-                return self.box.get((service, env_var))
+                return self.box.get((prefix, service, env_var))
             elif action == "delete":
-                return None if self.box.pop((service, env_var), None) is not None else False
+                return None if self.box.pop((prefix, service, env_var), None) is not None else False
             return None
 
         patches = [mock.patch.object(keychain, "_dispatch", dispatch),

@@ -136,6 +136,8 @@ def _build_parser() -> argparse.ArgumentParser:
         h.add_argument("--settings", default=None, metavar="FILE",
                        help="Use this settings file.")
         if hname == "install":
+            h.add_argument("--yes", action="store_true",
+                           help="Replace an old oathkey 0.8 hook without asking.")
             h.add_argument("--shell-form", action="store_true",
                            help="Write the hook as one command string, for a "
                                 "Claude Code too old to know `args` (Windows "
@@ -324,6 +326,10 @@ def _build_parser() -> argparse.ArgumentParser:
                     help="Add the entry to the client's config file (other entries are kept).")
 
     sub.add_parser("about", help="Who made stuntkey, and how to check this is the real one.")
+    mg = sub.add_parser("migrate", help="Copy keys saved by oathkey 0.8 to their stuntkey "
+                                        "names in the OS keychain (never shows a key).")
+    mg.add_argument("--remove-old", action="store_true",
+                    help="After each copy is read back and matches, remove the old entry.")
 
     f = sub.add_parser("find", help="Find free public APIs for a task.")
     f.add_argument("query", help="What you need, e.g. 'weather', 'crypto price'.")
@@ -812,6 +818,8 @@ def _store_where_key_lives(recipe: dict) -> str:
 
 def _main(argv: list[str] | None = None) -> int:
     _harden_streams()
+    from . import migrate as migrate_mod
+    migrate_mod.copy_home()          # 0.8 users: ~/.oathkey -> ~/.stuntkey, once
     parser = _build_parser()
     argv = list(sys.argv[1:] if argv is None else argv)
     argv, tail = split_remote(argv)
@@ -855,6 +863,8 @@ def _main(argv: list[str] | None = None) -> int:
     if args.cmd == "about":
         from . import aboutcmd
         return aboutcmd.cmd_about()
+    if args.cmd == "migrate":
+        return migrate_mod.cmd_migrate(args, catalog)
     handled = extras.dispatch(args, catalog)
     if handled is not None:
         return handled

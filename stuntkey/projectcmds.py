@@ -45,15 +45,16 @@ def cmd_init(args, catalog: dict, out=None) -> int:
     out = out or sys.stdout
     root = os.getcwd()
     target = os.path.join(root, manifest_mod.FILE_NAME)
+    source = manifest_mod.path_in(root)     # an old oathkey.json is read, ours is written
     existing = None
-    if os.path.exists(target):
+    if os.path.exists(source):
         if not args.force and not args.add:
             out.write(f"  {manifest_mod.FILE_NAME} already exists. Use --add to add newly "
                       f"found services to it, or --force to start over.\n")
             return 1
         if args.add:
             try:
-                existing = manifest_mod.load(target)
+                existing = manifest_mod.load(source)
             except manifest_mod.ManifestError as e:
                 out.write(f"  cannot use the existing manifest: {printable(e)}\n")
                 return 1

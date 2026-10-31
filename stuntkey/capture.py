@@ -800,7 +800,7 @@ def _where(root: str, slug: str, grant_: dict, default_store: str):
     if manifest_mod.env_file_problem(name) is not None:
         return None, None
     store = default_store
-    path = os.path.join(root, manifest_mod.FILE_NAME)
+    path = manifest_mod.path_in(root)
     if os.path.isfile(path):
         try:
             data = manifest_mod.load(path)

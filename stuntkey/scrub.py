@@ -254,7 +254,7 @@ def _read_fingerprints(path: str) -> dict:
         return {}
     if not (isinstance(data, dict) and isinstance(data.get("salt"), str)
             and isinstance(data.get("keys"), dict)):
-        raise ValueError(f"{path} is not an stuntkey fingerprint file")
+        raise ValueError(f"{path} is not a stuntkey fingerprint file")
     return data
 
 

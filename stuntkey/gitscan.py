@@ -184,6 +184,8 @@ def doctor(env=None, which=shutil.which) -> dict:
     if cafile:
         add("custom CA bundle", True, "set", "")
     _doctor_stuntkey_checks(add)
+    from . import migrate
+    migrate.doctor_checks(add)
     return {"ok": all(c["ok"] for c in checks), "checks": checks}
 
 

@@ -30,6 +30,9 @@ import sys
 from .recipes import printable
 
 TARGET_PREFIX = "stuntkey"
+# 0.8 saved keys as "oathkey:<service>". read() falls back to it and delete()
+# removes both; `stuntkey migrate` copies them over (migrate.py).
+LEGACY_PREFIX = "oathkey"
 # How long an OS tool (security, secret-tool) may take to answer. A keyring
 # that is waiting for a dialog nobody sees would otherwise hold us forever.
 TOOL_TIMEOUT = 30
@@ -48,8 +51,8 @@ class KeychainUnavailable(KeychainError):
     caller must not read it as "not stored"."""
 
 
-def target_name(service: str) -> str:
-    return f"{TARGET_PREFIX}:{service}"
+def target_name(service: str, prefix: str = TARGET_PREFIX) -> str:
+    return f"{prefix}:{service}"
 
 
 def detect_backend(platform: str | None = None, which=shutil.which,
@@ -82,8 +85,9 @@ def _security_quote(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def _macos(op: str, service: str, account: str, key: str | None, run) -> str | None:
-    target = target_name(service)
+def _macos(op: str, service: str, account: str, key: str | None, run,
+           prefix: str = TARGET_PREFIX) -> str | None:
+    target = target_name(service, prefix)
     if op == "store":
         # interactive mode reads commands from stdin: the key is never an
         # argv entry (visible in `ps`) - `-U` updates an existing item
@@ -109,11 +113,12 @@ def _macos(op: str, service: str, account: str, key: str | None, run) -> str | N
 
 # ----------------------------------------------------------------- Linux
 
-def _secret_tool(op: str, service: str, account: str, key: str | None, run) -> str | None:
-    attrs = ["service", TARGET_PREFIX, "account", account, "slug", service]
+def _secret_tool(op: str, service: str, account: str, key: str | None, run,
+                 prefix: str = TARGET_PREFIX) -> str | None:
+    attrs = ["service", prefix, "account", account, "slug", service]
     if op == "store":
         proc = run(["secret-tool", "store", "--label",
-                    f"{TARGET_PREFIX} {service} ({account})"] + attrs,
+                    f"{prefix} {service} ({account})"] + attrs,
                    input=(key or "").encode("utf-8"), capture_output=True,
                    timeout=TOOL_TIMEOUT)
         if proc.returncode != 0:
@@ -174,7 +179,7 @@ def _win_structs(ctypes_mod):
 
 
 def _windows(op: str, service: str, account: str, key: str | None,
-             ctypes_mod=None) -> str | None:
+             ctypes_mod=None, prefix: str = TARGET_PREFIX) -> str | None:
     ct = ctypes_mod
     if ct is None:
         import ctypes
@@ -182,7 +187,7 @@ def _windows(op: str, service: str, account: str, key: str | None,
         ct = ctypes
     advapi32 = ct.windll.advapi32
     CREDENTIAL = _win_structs(ct)
-    target = target_name(service)
+    target = target_name(service, prefix)
     if op == "store":
         blob = (key or "").encode("utf-16-le")
         buf = ct.create_string_buffer(blob, len(blob))
@@ -223,15 +228,16 @@ _TOOL_NAMES = {MACOS: "the `security` command", LINUX: "`secret-tool`",
 
 
 def _dispatch(op: str, backend: str, service: str, account: str,
-              key: str | None, run, ctypes_mod) -> str | None:
+              key: str | None, run, ctypes_mod,
+              prefix: str = TARGET_PREFIX) -> str | None:
     tool = _TOOL_NAMES.get(backend, "the keychain")
     try:
         if backend == MACOS:
-            return _macos(op, service, account, key, run)
+            return _macos(op, service, account, key, run, prefix)
         if backend == LINUX:
-            return _secret_tool(op, service, account, key, run)
+            return _secret_tool(op, service, account, key, run, prefix)
         if backend == WINDOWS:
-            return _windows(op, service, account, key, ctypes_mod)
+            return _windows(op, service, account, key, ctypes_mod, prefix)
     except subprocess.TimeoutExpired as e:
         # Never let this out as a traceback: for `connect` it would arrive
         # after the key was validated and lose it, for `forget` it would
@@ -286,7 +292,37 @@ def read(service: str, env_var: str, backend: str | None = None,
     backend = backend or detect_backend()
     if backend is None:
         return None
+    key = _dispatch("read", backend, service, env_var, None, run, ctypes_mod)
+    if key is None and _had_oathkey():     # saved by 0.8 (oathkey), not migrated yet
+        key = _dispatch("read", backend, service, env_var, None, run, ctypes_mod,
+                        LEGACY_PREFIX)
+    return key
+
+
+def _had_oathkey() -> bool:
+    """Only a computer that ran 0.8 can have old entries: the others are never
+    asked twice."""
+    from .migrate import had_oathkey
+    return had_oathkey()
+
+
+def read_legacy(service: str, env_var: str, backend: str, run=subprocess.run,
+                ctypes_mod=None) -> str | None:
+    """The key 0.8 saved under the old name, or None. For `stuntkey migrate`."""
+    return _dispatch("read", backend, service, env_var, None, run, ctypes_mod,
+                     LEGACY_PREFIX)
+
+
+def read_current(service: str, env_var: str, backend: str, run=subprocess.run,
+                 ctypes_mod=None) -> str | None:
+    """The key under the new name only (no fallback). For `stuntkey migrate`."""
     return _dispatch("read", backend, service, env_var, None, run, ctypes_mod)
+
+
+def delete_legacy(service: str, env_var: str, backend: str, run=subprocess.run,
+                  ctypes_mod=None) -> bool:
+    return _dispatch("delete", backend, service, env_var, None, run, ctypes_mod,
+                     LEGACY_PREFIX) is None
 
 
 def delete(service: str, env_var: str, backend: str | None = None,
@@ -298,6 +334,9 @@ def delete(service: str, env_var: str, backend: str | None = None,
         return False
     gone = _dispatch("delete", backend, service, env_var, None, run,
                      ctypes_mod) is None
+    # an old 0.8 copy would otherwise come back through read()'s fallback
+    if _had_oathkey():
+        gone = delete_legacy(service, env_var, backend, run, ctypes_mod) or gone
     if gone:
         _fingerprint("forget", f"{service}/{env_var}")
     return gone

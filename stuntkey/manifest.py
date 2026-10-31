@@ -27,6 +27,7 @@ import tempfile
 from . import recipes as recipes_mod
 
 FILE_NAME = "stuntkey.json"
+LEGACY_FILE_NAME = "oathkey.json"     # 0.8's name: used when ours is absent
 VERSION = 1
 STORES = ("env", "keychain")
 DEFAULT_MAX_AGE_DAYS = 90
@@ -72,6 +73,13 @@ def project_root(start: str | None = None) -> str:
     return os.path.realpath(_git_root(here) or here)
 
 
+def path_in(folder: str) -> str:
+    """The manifest's path in `folder`: stuntkey.json, or an old oathkey.json
+    when only that one is there."""
+    from .migrate import pick
+    return pick(folder, FILE_NAME, LEGACY_FILE_NAME)
+
+
 def find(start: str | None = None) -> str | None:
     """The nearest stuntkey.json at or above `start` (default: here), but
     never above the project: the search stops at the git work tree's root,
@@ -81,7 +89,7 @@ def find(start: str | None = None) -> str | None:
     here = os.path.realpath(start or os.getcwd())
     top = _git_root(here) or here
     for _ in range(64):
-        candidate = os.path.join(here, FILE_NAME)
+        candidate = path_in(here)
         if os.path.isfile(candidate) and _ours(candidate):
             return candidate
         if here == top:

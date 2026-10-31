@@ -25,15 +25,18 @@ import urllib.parse
 from .broker import MAX_REVIEW, BrokerError
 
 FILE = "stuntkey.policy"
+LEGACY_FILE = "oathkey.policy"     # 0.8's name: used when ours is absent
 MAX_BYTES = 64_000
 
 
 def user_file(home: str) -> str:
-    return os.path.join(home, FILE)
+    from .migrate import pick
+    return pick(home, FILE, LEGACY_FILE)
 
 
 def project_file(project_dir: str) -> str:
-    return os.path.join(project_dir, FILE)
+    from .migrate import pick
+    return pick(project_dir, FILE, LEGACY_FILE)
 
 
 def _approved_path(home: str) -> str:

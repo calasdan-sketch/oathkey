@@ -38,14 +38,6 @@ def _unpacked(pyz: str) -> str:
 
 
 def main() -> int:
-    args = sys.argv[1:]
-    if any(args[i:i + 2] == ["hook", "install"] for i in range(len(args))):
-        # ponytail: the hook starts `python -I -m stuntkey`, which a .pyz cannot
-        # answer, so it would block every tool call. Teach hook.py the .pyz first.
-        sys.stderr.write("The Claude Code hook needs stuntkey installed with pip: "
-                         "py -m pip install --user stuntkey (or pipx install stuntkey), "
-                         "then run `stuntkey hook install`.\n")
-        return 2
     pyz = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, _unpacked(pyz))
     import stuntkey

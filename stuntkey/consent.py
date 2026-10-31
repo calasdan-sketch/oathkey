@@ -41,6 +41,7 @@ DIR_NAME = ".stuntkey"
 FILE_NAME = "agent-consent.json"
 SECRET_FILE = "consent.key"
 LABEL = "stuntkey-consent"
+LEGACY_LABEL = "oathkey-consent"   # 0.8's keychain entry: read when ours is missing
 
 
 def home_dir() -> str:
@@ -143,7 +144,9 @@ class DpapiSecret(FileSecret):
 
         class Blob(ctypes.Structure):
             _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_char))]
-        entropy_bytes = b"stuntkey-consent"
+        # a fixed constant, kept from 0.8 (oathkey): a new one would make the
+        # secret copied over from ~/.oathkey unreadable
+        entropy_bytes = b"oathkey-consent"
         buf = ctypes.create_string_buffer(data, len(data))
         ent = ctypes.create_string_buffer(entropy_bytes, len(entropy_bytes))
         blob_in = Blob(len(data), ctypes.cast(buf, ctypes.POINTER(ctypes.c_char)))
@@ -191,11 +194,14 @@ class CommandSecret:
         return path
 
     def load(self) -> bytes | None:
+        return self._load(LABEL) or self._load(LEGACY_LABEL)
+
+    def _load(self, label: str) -> bytes | None:
         try:
             tool = self._tool()
-            argv = ([tool, "find-generic-password", "-a", LABEL, "-s", LABEL, "-w"]
+            argv = ([tool, "find-generic-password", "-a", label, "-s", label, "-w"]
                     if self.kind == "keychain" else
-                    [tool, "lookup", "service", LABEL, "kind", "consent"])
+                    [tool, "lookup", "service", label, "kind", "consent"])
             done = self.run(argv, capture_output=True, timeout=30)
         except (OSError, subprocess.TimeoutExpired):
             return None

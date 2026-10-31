@@ -170,11 +170,35 @@ No pip? Each release also has `stuntkey.pyz`, one file that runs with any
 Python 3.10+: `python stuntkey.pyz doctor`. The first run unpacks it once into
 `~/.stuntkey/pyz/`. Build it yourself with `python scripts/build_pyz.py`.
 `npx stuntkey` and winget packages are prepared (see
-[packaging.md](packaging.md)). The `.pyz` refuses `hook install`: the Claude
-Code `.env` hook needs the pip install.
+[packaging.md](packaging.md)). `hook install` works from the `.pyz` too: the
+hook then starts the same `.pyz` again.
 
 That installs the `stuntkey` command (`py -m stuntkey` / `python -m
 stuntkey` works too). From a checkout: `pip install .`
+
+### Coming from oathkey 0.8
+
+stuntkey was called OathKey in 0.8 (and SafeEasyAPI before that). Nothing
+needs to be done by hand, and nothing old is deleted unless you ask:
+
+- **Your settings folder.** The first run copies `~/.oathkey` to
+  `~/.stuntkey` (only when `~/.stuntkey` does not exist yet) and says so once.
+  The old folder is left as it was.
+- **Saved keys.** 0.8 saved keys in the OS keychain as `oathkey:<service>`.
+  stuntkey still finds them there, and `stuntkey migrate` copies each one to
+  its new name `stuntkey:<service>`, reads the copy back to check it, and
+  never shows a key. The old entries stay; `stuntkey migrate --remove-old`
+  deletes each one after its copy checked out. `stuntkey doctor` reminds you
+  until `migrate` has run cleanly.
+- **Project files.** An old `oathkey.json` or `oathkey.policy` is used when
+  there is no `stuntkey.json` / `stuntkey.policy`, with a note. Rename it when
+  you like.
+- **AI tool settings.** `stuntkey install` replaces 0.8's `oathkey` MCP
+  entry, and `stuntkey hook install` (add `--project` for a project's file)
+  replaces 0.8's hook. Both show the change and ask first (`hook install
+  --yes` does not ask). `stuntkey doctor` points out any old entry left.
+- **The old command.** `pip install oathkey` now installs a small package
+  that says "oathkey is now stuntkey" and passes the command on to stuntkey.
 
 **Windows:** run it from PowerShell or Windows Terminal. Under Git Bash /
 mintty the hidden key prompt (`getpass`) may echo what you type or appear

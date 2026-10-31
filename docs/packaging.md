@@ -16,9 +16,8 @@ provenance attestation. They are not uploaded to PyPI.
 
 On its first run the `.pyz` unpacks itself once into
 `~/.stuntkey/pyz/<hash>/` (stuntkey reads its recipes and `SKILL.md` as files).
-`install`, `setup-agent`, `wrap` and `scan-git --install-hook` write
-`python -P <path to stuntkey.pyz> ...`, so keep the file where it is. It refuses
-`hook install`: the Claude Code hook needs the pip install.
+`install`, `setup-agent`, `wrap`, `scan-git --install-hook` and `hook install`
+write `python <flag> <path to stuntkey.pyz> ...`, so keep the file where it is.
 
 ## winget (Windows)
 

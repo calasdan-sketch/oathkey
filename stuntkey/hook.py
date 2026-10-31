@@ -30,6 +30,7 @@ README for what could not be confirmed).
 from __future__ import annotations
 
 import datetime
+import difflib
 import hashlib
 import json
 import os
@@ -146,7 +147,7 @@ STEAL_RULES = (
     (re.compile(r"(?:(?:^|[\s;&|`(\"'/\\])(?:stuntkey|oathkey)(?:\.exe)?|\s-\w*m\s+(?:stuntkey|oathkey)(?:\.(?:cli|__main__))?)"
                 r"(?:\s+--project-dir(?:\s+|=)\S+)*\s+"
                 r"(?:remote|deploy|trust-server|export|run|serve|call)(?![\w-])", re.I),
-     "run an stuntkey command that uses or sends a stored key (remote, deploy, "
+     "run a stuntkey command that uses or sends a stored key (remote, deploy, "
      "trust-server, export, run, serve, call: only the person runs those)"),
     (re.compile(_SAFE + r"secret-tool\s+(?:lookup|search)\b", re.I), "read the Linux keyring"),
     (re.compile(_SAFE + r"security\s+(?:find-\w+-password|dump-keychain|export)\b", re.I),
@@ -712,10 +713,12 @@ def hook_argv() -> list[str]:
     by its full path, so nothing is looked up on a search path an agent could
     change; or, where there is no such program, this Python in isolated mode
     (-I: ignores the current folder and PYTHON* variables)."""
-    script = console_script()
+    from . import clients
+    me = clients.self_args()        # ["-m", "stuntkey"], or [path of stuntkey.pyz]
+    script = console_script() if me[0] == "-m" else None
     if script:
         return [script, "hook", "check"]
-    return [os.path.abspath(sys.executable), "-I", "-m", "stuntkey", "hook", "check"]
+    return [os.path.abspath(sys.executable), "-I", *me, "hook", "check"]
 
 
 def _shell_quote(arg: str) -> str:
@@ -799,6 +802,53 @@ def is_ours(handler) -> bool:
     cmd = handler.get("command")
     return (isinstance(cmd, str) and "args" not in handler
             and _is_our_command_string(cmd))
+
+
+def is_legacy(handler) -> bool:
+    """One of ours that oathkey (0.8) wrote: its marker, or a bare
+    `oathkey hook check` command. `hook install` replaces it."""
+    if not is_ours(handler):
+        return False
+    if handler.get("statusMessage") in LEGACY_MARKERS:
+        return True
+    cmd = handler.get("command")
+    return (handler.get("statusMessage") != MARKER and isinstance(cmd, str)
+            and re.search(r"(?:^|[\\/\s\"'])oathkey(?:\.exe)?[\"']?\s+hook\s+check|-m\s+oathkey\s", cmd) is not None)
+
+
+def legacy_handlers(data: dict) -> list:
+    """The old handlers of ours in a settings dict (both events)."""
+    found = []
+    for event in ("PreToolUse", "PostToolUse"):
+        try:
+            groups = _pretool_list(data, create=False, event=event) or []
+        except SettingsError:
+            continue
+        found += [h for _g, h in _our_handlers(groups) if is_legacy(h)]
+    return found
+
+
+def _confirm_legacy(data: dict, handler: dict, args, out) -> bool:
+    """Show what replacing 0.8's hook changes and ask. True to go ahead."""
+    old = legacy_handlers(data)
+    if not old:
+        return True
+    diff = difflib.unified_diff(
+        json.dumps(old, indent=2).splitlines(), json.dumps([handler], indent=2).splitlines(),
+        "old (oathkey 0.8)", "new (stuntkey)", lineterm="")
+    out.write("  Found the hook oathkey 0.8 installed. It will be replaced:\n"
+              + "".join(f"    {recipes_mod.printable(line)}\n" for line in diff))
+    if getattr(args, "yes", False):
+        return True
+    if not sys.stdin or not sys.stdin.isatty():
+        out.write("  Not changed: run this in a terminal to answer, or add --yes.\n")
+        return False
+    out.write("  Replace it? [y/N] ")
+    out.flush()
+    try:
+        return input("").strip().lower() in ("y", "yes")
+    except EOFError:
+        return False
 
 
 class SettingsError(Exception):
@@ -1039,6 +1089,9 @@ def cmd_hook(args, out=None, err=None, run=subprocess.run) -> int:
         if action == "install":
             handler = hook_handler(shell_form=True if getattr(args, "shell_form", False) else None,
                                    fail_closed=not getattr(args, "fail_open", False))
+            if not _confirm_legacy(data, handler, args, out):
+                out.write("  Left the old hook as it was.\n")
+                return 1
             result = merge_install(data, handler)
             backup = None
             if result != "unchanged":
@@ -1101,8 +1154,10 @@ RULES_TEXT = (
     "- Never print, echo or hard-code a key.\n"
     "- A command that needs a key: ask the person to run "
     "`stuntkey run <service> -- <cmd>`.\n")
-_RULES_BLOCK_RE = re.compile(r"\n*<!-- stuntkey:begin[^\n]*\n.*?" + re.escape(RULES_END) + r"\n?",
-                             re.S)
+_RULES_BLOCK_RE = re.compile(r"\n*<!-- (?:stuntkey|oathkey):begin[^\n]*\n.*?"
+                             r"<!-- (?:stuntkey|oathkey):end -->\n?", re.S)
+# the block 0.8 (oathkey) added: replaced by ours on install, removed on uninstall
+_LEGACY_RULES_RE = re.compile(r"\n*<!-- oathkey:begin[^\n]*\n.*?<!-- oathkey:end -->\n?", re.S)
 
 
 def _rules_targets(folder: str) -> list[str]:
@@ -1135,6 +1190,9 @@ def add_agent_rules(folder: str) -> list[str]:
         if RULES_END in old:
             continue
         nl = "\r\n" if "\r\n" in old else "\n"
+        if "<!-- oathkey:end -->" in old:       # 0.8's block: ours replaces it
+            old = _LEGACY_RULES_RE.sub("\n", old.replace("\r\n", "\n")).strip("\n")
+            old = (old + "\n").replace("\n", nl) if old.strip() else ""
         block = (RULES_BEGIN + "\n" + RULES_TEXT + RULES_END + "\n").replace("\n", nl)
         sep = "" if not old else (nl if old.endswith(nl) else nl + nl)
         _write_text(path, old + sep + block)
@@ -1149,7 +1207,7 @@ def remove_agent_rules(folder: str) -> list[str]:
     for name in RULES_FILES:
         path = os.path.join(folder, name)
         old = _read_text(path)
-        if old is None or RULES_END not in old:
+        if old is None or (RULES_END not in old and "<!-- oathkey:end -->" not in old):
             continue
         nl = "\r\n" if "\r\n" in old else "\n"
         new = _RULES_BLOCK_RE.sub("\n", old.replace("\r\n", "\n")).strip("\n")

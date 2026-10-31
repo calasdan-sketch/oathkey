@@ -56,10 +56,22 @@ class Pyz(unittest.TestCase):
         self.assertIn("'C:/x/stuntkey.pyz', 'mcp'", r.stdout)
         self.assertEqual(clients.self_args(), ["-m", "stuntkey"])
 
-    def test_hook_install_is_refused_from_the_pyz(self):
-        r = self.run_pyz("hook", "install")
-        self.assertEqual(r.returncode, 2)
-        self.assertIn("pip install", r.stderr)
+    def test_hook_install_from_the_pyz_starts_the_pyz(self):
+        settings = os.path.join(self.home, "hook-settings.json")
+        r = self.run_pyz("hook", "install", "--settings", settings)
+        # 0: the self-test ran the installed hook (through the .pyz) and it said no
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        with open(settings, encoding="utf-8") as f:
+            text = json.dumps(json.load(f))
+        self.assertIn(os.path.basename(self.pyz), text)
+        self.assertNotIn('"-m", "stuntkey"', text)
+
+    def test_hook_argv_uses_self_args(self):
+        code = ("import stuntkey; stuntkey.PYZ = 'C:/x/stuntkey.pyz'; "
+                "from stuntkey import hook; print(hook.hook_argv()[1:])")
+        r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                           cwd=REPO)
+        self.assertIn("['-I', 'C:/x/stuntkey.pyz', 'hook', 'check']", r.stdout, r.stderr)
 
     def test_the_windows_zip_has_the_launcher(self):
         import zipfile
