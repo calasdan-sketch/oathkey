@@ -5,6 +5,7 @@ block with its undo."""
 
 import argparse
 import io
+import sys
 import json
 import os
 import time
@@ -222,8 +223,9 @@ class AgentRules(unittest.TestCase):
         self.assertEqual(hook_mod._offer_agent_rules(
             parse(["hook", "install", "--project"]), out, ask=lambda _: "n"), "")
         self.assertFalse(os.path.exists("CLAUDE.md"))
-        self.assertIn("Tip", hook_mod._offer_agent_rules(
-            parse(["hook", "install", "--project"]), out))          # not a terminal: no prompt
+        with mock.patch.object(sys, "stdin", io.StringIO()):     # not a terminal: no prompt
+            self.assertIn("Tip", hook_mod._offer_agent_rules(
+                parse(["hook", "install", "--project"]), out))
         self.assertFalse(os.path.exists("CLAUDE.md"))
         self.assertEqual(hook_mod._offer_agent_rules(
             argparse.Namespace(project=True, agent_rules=False), out, ask=lambda _: "y"), "")
