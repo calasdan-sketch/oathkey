@@ -41,5 +41,13 @@
   },
   "least_privilege": {
     "summary": "Custom Access with only Mail Send."
+  },
+  "revoke": {
+    "page": "https://app.sendgrid.com/settings/api_keys",
+    "steps": [
+      "Sign in; this is Settings > API Keys",
+      "Open the gear menu next to the leaked key and choose Delete",
+      "Confirm"
+    ]
   }
 }

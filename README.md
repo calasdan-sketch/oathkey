@@ -107,6 +107,7 @@ oathkey uses only Python's own standard library, and a test in the repository ([
 - `overview` - what is connected and whether the activity log is intact. (`status` shows where each key lives and how old it is.)
 - `audit show` - the last calls, with a warning if the log does not check out.
 - `rotate <service>` - replace a stored key.
+- `panic <service> [--dry-run]` - "I leaked a key": asks first, revokes it (GitHub and Vercel through their official API; others open the revoke page and wait for you), gets a new one with the `get` flow, then shows where the old key is still written (project, .env, MCP configs, git history). Terminal only - never offered to an agent.
 - `caps set openai --calls-day 500 --tokens-day 200000 --calls-session 100` - a spending limit per key, counted across every program using it (`--clear` removes it; `caps show` lists them). The limit can be passed by one call already in flight.
 - `stop` / `resume` - a kill switch: `stop` refuses every brokered and proxied call at once; `resume` (asks you first) lets them through again.
 - `policy show` / `policy approve` - an `oathkey.policy` file lists the methods and paths each service may use. A project's file can only narrow your own. A new or changed file is obeyed only after you approve it.

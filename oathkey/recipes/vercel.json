@@ -58,5 +58,22 @@
   },
   "unverified": [
     "how Vercel answers an invalid token (believed to be a 403 that says invalidToken: true; the docs do not say)"
-  ]
+  ],
+  "revoke": {
+    "api": {
+      "method": "DELETE",
+      "url": "https://api.vercel.com/v3/user/tokens/current",
+      "auth": {
+        "type": "bearer"
+      },
+      "expect": [
+        200
+      ]
+    },
+    "page": "https://vercel.com/account/tokens",
+    "steps": [
+      "Find the leaked token in Account > Tokens",
+      "Click Delete and confirm"
+    ]
+  }
 }

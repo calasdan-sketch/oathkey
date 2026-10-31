@@ -42,5 +42,12 @@
   },
   "unverified": [
     "validate.limited (OpenAI's docs do not say what a restricted key without model access gets; a wrong key is a 401)"
-  ]
+  ],
+  "revoke": {
+    "page": "https://platform.openai.com/api-keys",
+    "steps": [
+      "Find the leaked key in the list (check every project)",
+      "Click the trash (Revoke) button and confirm"
+    ]
+  }
 }
