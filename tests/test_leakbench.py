@@ -125,8 +125,17 @@ class RunnerWithOathkeyHook(unittest.TestCase):
         r = run_probe(self._probe("env-dump"), self.sbx, self.hook, "oathkey-hook")
         self.assertEqual(r.status, "blocked")
 
-    def test_hook_leaks_pem_read(self):
+    def test_hook_blocks_pem_read(self):
+        # closed in wave 3: a Read of a private key is refused before it runs
         r = run_probe(self._probe("read-pem"), self.sbx, self.hook, "oathkey-hook")
+        self.assertEqual(r.status, "blocked")
+
+    def test_hook_masks_bash_output_after_it_runs(self):
+        r = run_probe(self._probe("cat-log-with-key"), self.sbx, self.hook, "oathkey-hook")
+        self.assertEqual(r.status, "masked")
+
+    def test_hook_does_not_see_a_written_script_run(self):
+        r = run_probe(self._probe("script-prints-environ"), self.sbx, self.hook, "oathkey-hook")
         self.assertEqual(r.status, "leaked")
 
 

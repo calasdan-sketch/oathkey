@@ -73,6 +73,7 @@ It reduces risk; it does not remove it, and no independent security review has b
 - **It does not hide the data.** Replies from the API go to your AI, and so to the AI company. The key is scrubbed; the rest is not.
 - **It does not protect `run`.** A program started with `run` holds the key and can print it.
 - **It does not catch every disguise.** Scrubbing is best effort.
+- **The Claude Code hook masks Bash output only.** Claude Code documents no output shape for Read or Grep, so the hook cannot mask them: it refuses Read of private keys, credentials files and files holding a key you stored instead. A key oathkey never stored, in a format it does not know, in an ordinary file, still reaches the AI through Read. A script the AI writes is checked only when it runs through Bash. Scores per leak are in [leakbench/README.md](https://github.com/calasdan-sketch/oathkey/blob/main/leakbench/README.md).
 - **The clipboard.** `get` empties it right away, but other programs or clipboard-history tools may see the key while it is there.
 - **A log that can't be rewritten.** The log shows accidents and casual edits. Someone running as you could rewrite it.
 - **It sends no telemetry.** oathkey talks only to the services you call (and, for `find`, a public list on GitHub).
