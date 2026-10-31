@@ -16,19 +16,19 @@ from unittest import mock
 
 import _isolation  # noqa: F401
 import test_v070_capture as base
-from oathkey import agent as agent_mod
-from oathkey import agentsetup
-from oathkey import allowcmd
-from oathkey import capture as capture_mod
-from oathkey import cli as cli_mod
-from oathkey import clipboard as clip_mod
-from oathkey import consent as consent_mod
-from oathkey import dialog as dialog_mod
-from oathkey import hook as hook_mod
-from oathkey import mcp as mcp_mod
-from oathkey import safeexec
-from oathkey import skillcmd
-from oathkey import validate as validate_mod
+from stuntkey import agent as agent_mod
+from stuntkey import agentsetup
+from stuntkey import allowcmd
+from stuntkey import capture as capture_mod
+from stuntkey import cli as cli_mod
+from stuntkey import clipboard as clip_mod
+from stuntkey import consent as consent_mod
+from stuntkey import dialog as dialog_mod
+from stuntkey import hook as hook_mod
+from stuntkey import mcp as mcp_mod
+from stuntkey import safeexec
+from stuntkey import skillcmd
+from stuntkey import validate as validate_mod
 
 GH_KEY, OTHER, CATALOG = base.GH_KEY, base.OTHER, base.CATALOG
 until, wait_for = base.until, base.wait_for
@@ -800,19 +800,19 @@ class TestHookRound2(unittest.TestCase):
             self.assertTrue(self.denied(cmd), cmd)
 
     def test_the_consent_files_by_bare_name_and_relative_path(self):
-        for cmd in ("cat consent.key", "cat agent-consent.json", "ls .oathkey",
-                    "type .\\.oathkey\\x", "cat .o''athkey/x", "cat ../.oathkey/consent.key"):
+        for cmd in ("cat consent.key", "cat agent-consent.json", "ls .stuntkey",
+                    "type .\\.stuntkey\\x", "cat .o''athkey/x", "cat ../.stuntkey/consent.key"):
             self.assertTrue(self.denied(cmd), cmd)
 
     def test_writing_there_with_a_relative_path_is_refused(self):
         for tool in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
             field = "notebook_path" if tool == "NotebookEdit" else "file_path"
-            self.assertTrue(self.denied(".oathkey/agent-consent.json", tool, field), tool)
-            self.assertTrue(self.denied("sub/.oathkey/consent.key", tool, field), tool)
+            self.assertTrue(self.denied(".stuntkey/agent-consent.json", tool, field), tool)
+            self.assertTrue(self.denied("sub/.stuntkey/consent.key", tool, field), tool)
 
     def test_ordinary_use_is_untouched(self):
-        for cmd in ("oathkey list", "pip install oathkey", "python -m oathkey mcp",
-                    "echo safe and easy", "git commit -m 'oathkey 0.7.2'"):
+        for cmd in ("stuntkey list", "pip install stuntkey", "python -m stuntkey mcp",
+                    "echo safe and easy", "git commit -m 'stuntkey 0.7.2'"):
             self.assertFalse(self.denied(cmd), cmd)
         self.assertFalse(self.denied("src/app.py", "Write", "file_path"))
 
@@ -924,23 +924,23 @@ class TestSetupAgent(unittest.TestCase):
         with mock.patch.object(agentsetup.sys, "executable", exe):
             code, text = self.run_setup("claude-code", platform="linux")
         self.assertEqual(code, 0)
-        self.assertIn("claude mcp add oathkey -- " + shlex.quote(exe) + " -m oathkey mcp", text)
+        self.assertIn("claude mcp add stuntkey -- " + shlex.quote(exe) + " -m stuntkey mcp", text)
 
     def test_the_windows_form_quotes_a_path_with_spaces(self):
         win = "C:\\Program Files\\Python\\python.exe"
         self.assertEqual(
-            agentsetup._command_line(["claude", "mcp", "add", "oathkey", "--", win, "-m"], "win32"),
-            'claude mcp add oathkey -- "C:\\Program Files\\Python\\python.exe" -m')
+            agentsetup._command_line(["claude", "mcp", "add", "stuntkey", "--", win, "-m"], "win32"),
+            'claude mcp add stuntkey -- "C:\\Program Files\\Python\\python.exe" -m')
         with mock.patch.object(agentsetup.sys, "executable", win), \
                 mock.patch.object(agentsetup.os.path, "abspath", lambda p: p):
             code, text = self.run_setup("claude-code", platform="win32")
-        self.assertIn('claude mcp add oathkey -- "' + win + '" -m oathkey mcp', text)
+        self.assertIn('claude mcp add stuntkey -- "' + win + '" -m stuntkey mcp', text)
 
     def test_without_write_nothing_is_written(self):
         for client in ("cursor", "gemini", "codex", "claude-desktop"):
             code, text = self.run_setup(client)
             self.assertEqual(code, 0)
-            self.assertIn("oathkey", text)
+            self.assertIn("stuntkey", text)
         self.assertEqual(os.listdir(self.cwd), [])
 
     def test_json_clients_get_the_entry_and_keep_the_rest(self):
@@ -954,7 +954,7 @@ class TestSetupAgent(unittest.TestCase):
             data = json.loads(self.read(path))
             self.assertEqual(data["theme"], "dark")
             self.assertEqual(data["mcpServers"]["other"], {"command": "x"})
-            self.assertEqual(data["mcpServers"]["oathkey"]["args"][:3], ["-m", "oathkey", "mcp"])
+            self.assertEqual(data["mcpServers"]["stuntkey"]["args"][:3], ["-m", "stuntkey", "mcp"])
             code, text = self.run_setup(client, write=True)
             self.assertIn("already has", text)
 
@@ -962,15 +962,15 @@ class TestSetupAgent(unittest.TestCase):
         path = agentsetup.config_path("cursor", self.home, self.cwd)
         os.makedirs(os.path.dirname(path))
         with open(path, "w") as f:
-            json.dump({"mcpServers": {"oathkey": {"command": "/old/python", "args": []}}}, f)
+            json.dump({"mcpServers": {"stuntkey": {"command": "/old/python", "args": []}}}, f)
         self.run_setup("cursor", write=True)
-        self.assertEqual(json.loads(self.read(path))["mcpServers"]["oathkey"]["command"],
+        self.assertEqual(json.loads(self.read(path))["mcpServers"]["stuntkey"]["command"],
                          os.path.abspath(sys.executable))
 
     def test_a_new_config_is_created(self):
         self.run_setup("gemini", write=True)
         path = agentsetup.config_path("gemini", self.home, self.cwd)
-        self.assertIn("oathkey", json.loads(self.read(path))["mcpServers"])
+        self.assertIn("stuntkey", json.loads(self.read(path))["mcpServers"])
 
     def test_bad_json_is_left_alone_with_a_reason(self):
         path = agentsetup.config_path("cursor", self.home, self.cwd)
@@ -1000,8 +1000,8 @@ class TestSetupAgent(unittest.TestCase):
         path = agentsetup.config_path("codex", self.home, self.cwd)
         os.makedirs(os.path.dirname(path))
         with open(path, "w", encoding="utf-8") as f:
-            f.write('model = "x"\n\n[mcp_servers.oathkey]\ncommand = "/old/python"\n'
-                    'args = ["-m", "oathkey", "mcp"]\n\n[mcp_servers.other]\ncommand = "o"\n')
+            f.write('model = "x"\n\n[mcp_servers.stuntkey]\ncommand = "/old/python"\n'
+                    'args = ["-m", "stuntkey", "mcp"]\n\n[mcp_servers.other]\ncommand = "o"\n')
         code, text = self.run_setup("codex", write=True)
         self.assertEqual(code, 0)
         body = self.read(path).decode()
@@ -1009,14 +1009,14 @@ class TestSetupAgent(unittest.TestCase):
         self.assertIn(os.path.abspath(sys.executable).replace("\\", "\\\\"), body)
         self.assertIn('model = "x"', body)
         self.assertIn("[mcp_servers.other]", body)
-        self.assertEqual(body.count("[mcp_servers.oathkey]"), 1)
+        self.assertEqual(body.count("[mcp_servers.stuntkey]"), 1)
         self.assertIn("updated", text)
         self.assertIn("already", self.run_setup("codex", write=True)[1])
 
     def test_codex_new_file_and_undecodable_file(self):
         self.assertEqual(self.run_setup("codex", write=True)[0], 0)
         path = agentsetup.config_path("codex", self.home, self.cwd)
-        self.assertIn("[mcp_servers.oathkey]", self.read(path).decode())
+        self.assertIn("[mcp_servers.stuntkey]", self.read(path).decode())
         with open(path, "wb") as f:
             f.write(b"\xff\xfe\x00bad")
         code, text = self.run_setup("codex", write=True)
@@ -1047,7 +1047,7 @@ class TestInstallRules(unittest.TestCase):
 
     def test_fresh_install_for_each_client(self):
         for client, name in (("codex", "AGENTS.md"), ("gemini", "GEMINI.md"),
-                             ("cursor", os.path.join(".cursor", "rules", "oathkey.mdc"))):
+                             ("cursor", os.path.join(".cursor", "rules", "stuntkey.mdc"))):
             self.assertEqual(agentsetup.install_rules(client, self.base, self.TEXT, self.out), 0)
             self.assertTrue(self.path(client).endswith(name))
             body = self.read(client).decode()
@@ -1114,20 +1114,20 @@ class Args:
 
 class TestSkillInstallFor(unittest.TestCase):
     def test_for_codex_cursor_gemini_write_their_files(self):
-        for client, name in (("codex", "AGENTS.md"), ("cursor", ".cursor/rules/oathkey.mdc"),
+        for client, name in (("codex", "AGENTS.md"), ("cursor", ".cursor/rules/stuntkey.mdc"),
                              ("gemini", "GEMINI.md")):
             d = _isolation.mktemp()
             out = io.StringIO()
             self.assertEqual(skillcmd.cmd_skill(Args(client), out, cwd=d), 0)
             with open(os.path.join(d, *name.split("/")), encoding="utf-8") as f:
-                self.assertIn("oathkey", f.read())
+                self.assertIn("stuntkey", f.read())
 
     def test_for_all_writes_every_file_and_the_claude_skill(self):
         d, home = _isolation.mktemp(), _isolation.mktemp()
         self.assertEqual(skillcmd.cmd_skill(Args("all"), io.StringIO(), home=home, cwd=d), 0)
         for name in ("AGENTS.md", "GEMINI.md"):
             self.assertTrue(os.path.isfile(os.path.join(d, name)))
-        self.assertTrue(os.path.isfile(os.path.join(d, ".claude", "skills", "oathkey", "SKILL.md")))
+        self.assertTrue(os.path.isfile(os.path.join(d, ".claude", "skills", "stuntkey", "SKILL.md")))
 
     def test_the_parser_knows_the_option(self):
         d = _isolation.mktemp()
@@ -1165,7 +1165,7 @@ class TestFileGrantIgnoredWhenAWindowCanBeShown(base.Base):
         self.assertEqual(self.start(self.manager(window_available=lambda: False))["state"], "waiting")
 
     def test_the_off_switch_for_windows(self):
-        self.assertFalse(dialog_mod.available("linux", {"DISPLAY": ":0", "OATHKEY_NO_WINDOW": "1"},
+        self.assertFalse(dialog_mod.available("linux", {"DISPLAY": ":0", "STUNTKEY_NO_WINDOW": "1"},
                                               lambda n: "/usr/bin/" + n))
         self.assertTrue(dialog_mod.available("linux", {"DISPLAY": ":0"}, lambda n: "/usr/bin/" + n))
 
@@ -1304,7 +1304,7 @@ class TestHookGlobs(unittest.TestCase):
             self.assertTrue(self.denied(cmd), cmd)
 
     def test_ordinary_commands_are_left_alone(self):
-        for cmd in ("oathkey list", "git commit -m 'update xclip docs'", "man security",
+        for cmd in ("stuntkey list", "git commit -m 'update xclip docs'", "man security",
                     "ls -a .*", "rm -rf .git*", "cat .sh*", "ls .config/*", "git add .",
                     "echo done *", "grep -r security docs/*"):
             self.assertFalse(self.denied(cmd), cmd)
@@ -1358,7 +1358,7 @@ class TestLockAndFolder(base.Base):
 
     @unittest.skipIf(os.name == "nt", "POSIX modes")
     def test_the_consent_folder_is_private(self):
-        folder = os.path.join(_isolation.mktemp(), ".oathkey")
+        folder = os.path.join(_isolation.mktemp(), ".stuntkey")
         consent_mod.grant(self.proj, "github", False, os.path.join(folder, "c.json"), None, self.secret)
         self.assertEqual(oct(os.stat(folder).st_mode & 0o777), "0o700")
         consent_mod.FileSecret(os.path.join(_isolation.mktemp(), "sub", "k")).save(b"z" * 40)
@@ -1551,13 +1551,13 @@ class TestWindowWording(unittest.TestCase):
 
     def test_exact_final_wording(self):
         w = self.windows()
-        first = ("oathkey (free key-safe tool, made by Calas Automations, "
+        first = ("stuntkey (free key-safe tool, made by Calas Automations, "
                  "installed on this computer)")
         self.assertEqual(w["consent"], (
-            "oathkey (installed on this computer)",
+            "stuntkey (installed on this computer)",
             first + "\n"
             'An AI program wants to connect GitHub for "my-shop".\n'
-            "oathkey will save the key safely; it is never shown to the AI program.\n"
+            "stuntkey will save the key safely; it is never shown to the AI program.\n"
             "Did you ask the AI program to do this?\n"
             "No = nothing is stored or changed. This window closes by itself in 5 minutes (same as No)."))
         self.assertEqual(w["replace"][1],
@@ -1594,9 +1594,9 @@ class TestWindowWording(unittest.TestCase):
             self.assertTrue(all(len(line) < 110 for line in text.splitlines()), name)
         for name in ("consent", "replace"):
             title, text = self.windows()[name]
-            self.assertIn("oathkey", title)
+            self.assertIn("stuntkey", title)
             self.assertIn("installed on this computer", title)
-            self.assertTrue(text.splitlines()[0].startswith("oathkey (free key-safe tool, made by Calas Automations"))
+            self.assertTrue(text.splitlines()[0].startswith("stuntkey (free key-safe tool, made by Calas Automations"))
             self.assertIn("nothing is stored or changed", text)
         self.assertTrue(self.windows()["account"][1].startswith("GitHub account: octo-cat"))
 

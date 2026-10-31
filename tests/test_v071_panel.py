@@ -18,14 +18,14 @@ from unittest import mock
 
 import _isolation  # noqa: F401
 import test_v070_capture as base
-from oathkey import capture as capture_mod
-from oathkey import clipboard as clip_mod
-from oathkey import consent as consent_mod
-from oathkey import hook as hook_mod
-from oathkey import manifest as manifest_mod
-from oathkey import safeprompt
-from oathkey import store as store_mod
-from oathkey import validate as validate_mod
+from stuntkey import capture as capture_mod
+from stuntkey import clipboard as clip_mod
+from stuntkey import consent as consent_mod
+from stuntkey import hook as hook_mod
+from stuntkey import manifest as manifest_mod
+from stuntkey import safeprompt
+from stuntkey import store as store_mod
+from stuntkey import validate as validate_mod
 
 GH_KEY, OTHER, CATALOG = base.GH_KEY, base.OTHER, base.CATALOG
 until, wait_for = base.until, base.wait_for
@@ -260,7 +260,7 @@ class TestMutationSurvivors(base.Base):
         def fake(recipe, env_file, out=None, interactive=None):
             seen["interactive"] = interactive
             return lambda var, key: "ok"
-        from oathkey import cli as cli_mod
+        from stuntkey import cli as cli_mod
         with mock.patch.object(cli_mod, "keychain_store", fake):
             capture_mod._default_store(CATALOG["github"], "x.env", "keychain")
         self.assertFalse(seen["interactive"]())
@@ -438,14 +438,14 @@ class TestHookVariants(unittest.TestCase):
                 "Get-Content .env", "gc .env", "type .env", "cat .env", "cat ./sub/.env.local",
                 "c''at .env", 'cat ".e""nv"', "cat .e^nv", "cat $HOME/proj/.env",
                 "cd sub && cat ../.env", "cat \"$PWD\"/.env",
-                "python -m oathkey allow-agent github", "py -m oathkey allow-agent github",
-                "oathkey 'allow-agent' github", "oathkey allow-\"agent\" github",
-                "oathkey.exe allow^-agent github", "oathkey allow-agent $X",
+                "python -m stuntkey allow-agent github", "py -m stuntkey allow-agent github",
+                "stuntkey 'allow-agent' github", "stuntkey allow-\"agent\" github",
+                "stuntkey.exe allow^-agent github", "stuntkey allow-agent $X",
                 "pbpaste", "wl-paste", "xclip -o", "xclip -selection clipboard -o",
                 "xsel -o", "xsel --output", "Get-Clipboard", "powershell -c Get-Clipboard",
                 "pwsh -c \"[Windows.Forms.Clipboard]::GetText()\"",
                 "python -c 'import pyperclip; pyperclip.paste()'",
-                "cat ~/.oathkey/agent-consent.json", "type %USERPROFILE%\\.oathkey\\agent-consent.json",
+                "cat ~/.stuntkey/agent-consent.json", "type %USERPROFILE%\\.stuntkey\\agent-consent.json",
         ):
             self.assertTrue(self.denied(cmd), cmd)
 
@@ -454,7 +454,7 @@ class TestHookVariants(unittest.TestCase):
         self.assertTrue(self.denied("Get-Content .env", tool="PowerShell"))
 
     def test_these_stay_allowed(self):
-        for cmd in ("ls", "git status", "oathkey list", "oathkey connect github",
+        for cmd in ("ls", "git status", "stuntkey list", "stuntkey connect github",
                     "cat README.md", "echo 'hello there'", "xclip -i file.txt",
                     "python -m pytest", "type notes.txt", "cat .env.example"):
             self.assertFalse(self.denied(cmd), cmd)

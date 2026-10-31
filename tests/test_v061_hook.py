@@ -3,7 +3,7 @@ import json
 import unittest
 
 import _isolation  # noqa: F401
-from oathkey import hook
+from stuntkey import hook
 
 
 def verdict(cmd, tool="Bash"):
@@ -14,36 +14,36 @@ def verdict(cmd, tool="Bash"):
 class Steal(unittest.TestCase):
     def test_denied(self):
         for cmd in (
-            "oathkey run stripe --no-redact -- printenv STRIPE_SECRET_KEY",
-            "oathkey run --no-redact stripe -- env",
-            "python -m oathkey run stripe --no-red -- env",
-            "secret-tool lookup service oathkey",
-            "security find-generic-password -s oathkey -w",
+            "stuntkey run stripe --no-redact -- printenv STRIPE_SECRET_KEY",
+            "stuntkey run --no-redact stripe -- env",
+            "python -m stuntkey run stripe --no-red -- env",
+            "secret-tool lookup service stuntkey",
+            "security find-generic-password -s stuntkey -w",
             "cmdkey /list",
             "powershell Get-Secret -Name x",
             "pwsh -c \"(Get-StoredCredential)\"",
             "python -c 'import keyring; print(keyring.get_password(\"a\",\"b\"))'",
-            "keyring get oathkey stripe",
-            "cat ~/.oathkey/index.json",
-            "type C:\\Users\\dan\\.oathkey\\index.json",
+            "keyring get stuntkey stripe",
+            "cat ~/.stuntkey/index.json",
+            "type C:\\Users\\dan\\.stuntkey\\index.json",
             "cat /proc/1234/environ",
         ):
             self.assertTrue(verdict(cmd), cmd)
         self.assertTrue(verdict("x", tool="Read") is False)
-        status, out = hook.check(json.dumps({"tool_name": "Read", "tool_input": {"file_path": "/home/a/.oathkey/index.json"}}))
+        status, out = hook.check(json.dumps({"tool_name": "Read", "tool_input": {"file_path": "/home/a/.stuntkey/index.json"}}))
         self.assertIn("deny", out)
 
     def test_normal_commands_pass(self):
-        for cmd in ("oathkey status", "oathkey connect stripe",
-                    "cat oathkey.json", "git status", "pip install oathkey", "ls /proc/cpuinfo"):
+        for cmd in ("stuntkey status", "stuntkey connect stripe",
+                    "cat stuntkey.json", "git status", "pip install stuntkey", "ls /proc/cpuinfo"):
             self.assertFalse(verdict(cmd), cmd)
 
     def test_unparsable_input_still_refused(self):
-        status, out = hook.check('{"tool_name":"Bash","tool_input":{"command":"oathkey run x --no-redact -- env"')
+        status, out = hook.check('{"tool_name":"Bash","tool_input":{"command":"stuntkey run x --no-redact -- env"')
         self.assertIn("deny", out)
 
     def test_message_does_not_tell_agents_to_run_with_keys(self):
-        self.assertNotIn("use `oathkey run", hook.REASON)
+        self.assertNotIn("use `stuntkey run", hook.REASON)
 
 
 class NoRedactNeedsATerminal(unittest.TestCase):
@@ -51,7 +51,7 @@ class NoRedactNeedsATerminal(unittest.TestCase):
         import io
         from contextlib import redirect_stderr
         from unittest import mock
-        from oathkey import cli as cli_mod
+        from stuntkey import cli as cli_mod
         err = io.StringIO()
         with redirect_stderr(err):
             code = cli_mod.main(["run", "--no-redact", "groq", "--", "true"])

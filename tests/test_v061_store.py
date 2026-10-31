@@ -5,7 +5,7 @@ import threading
 import unittest
 
 import _isolation  # noqa: F401
-from oathkey import store
+from stuntkey import store
 
 
 class Parallel(unittest.TestCase):

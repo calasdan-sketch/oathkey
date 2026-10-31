@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 import unittest
 
-from oathkey import gitscan as scan
+from stuntkey import gitscan as scan
 
 KEY = "ghp_" + "Q1w2E3r4T5y6U7i8O9p0A1s2D3f4G5h6J7k8"   # built at run time
 

@@ -3,8 +3,8 @@ import io
 import unittest
 
 import _isolation  # noqa: F401
-from oathkey import clipboard as clip_mod
-from oathkey import connect as connect_mod
+from stuntkey import clipboard as clip_mod
+from stuntkey import connect as connect_mod
 
 KEY = "Zk3pQ9vL2mXw8RtY5uBn7HcD"
 

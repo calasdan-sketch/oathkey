@@ -1,6 +1,6 @@
 name: publish-shim
 
-# Publishes the small 'safeeasyapi has moved to oathkey' package in shim/.
+# Publishes the small 'safeeasyapi has moved to stuntkey' package in shim/.
 # Push a tag like shim-v0.9.0 (must equal shim/pyproject.toml's version, and be on main).
 on:
   push:

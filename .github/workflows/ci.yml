@@ -43,4 +43,4 @@ jobs:
         run: |
           python -m venv "$RUNNER_TEMP/wheel-venv"
           "$RUNNER_TEMP/wheel-venv/bin/pip" install dist/*.whl
-          "$RUNNER_TEMP/wheel-venv/bin/oathkey" --version
+          "$RUNNER_TEMP/wheel-venv/bin/stuntkey" --version

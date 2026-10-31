@@ -5,7 +5,7 @@ import stat
 import tempfile
 import unittest
 
-from oathkey import broker, httpd, recipes
+from stuntkey import broker, httpd, recipes
 
 KEY = "ghp_" + "Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4J3i2"   # built at run time
 CATALOG = recipes.load_recipes()

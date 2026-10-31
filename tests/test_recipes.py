@@ -3,7 +3,7 @@ import os
 import unittest
 
 import _isolation  # noqa: F401  (fake HOME/USERPROFILE for the whole run)
-from oathkey import recipes as recipes_mod
+from stuntkey import recipes as recipes_mod
 
 REPO = _isolation.REPO
 BUILTIN = recipes_mod.RECIPES_DIR  # ships inside the package

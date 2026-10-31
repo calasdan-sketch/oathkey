@@ -7,7 +7,7 @@ import threading
 import unittest
 from urllib.parse import quote
 
-from oathkey import approve, broker, clients, gitscan as scan, recipes
+from stuntkey import approve, broker, clients, gitscan as scan, recipes
 
 KEY = "wJalr" + "XUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"      # has / and +
 RECIPE = recipes.load_recipes()["github"]

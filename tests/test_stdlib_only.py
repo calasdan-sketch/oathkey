@@ -1,4 +1,4 @@
-"""oathkey uses only Python's own standard library - no outside code.
+"""stuntkey uses only Python's own standard library - no outside code.
 
 This is a promise we make to users, so a test enforces it: if any file in the
 package imports something that is not in the standard library, this fails.
@@ -8,7 +8,7 @@ import os
 import sys
 import unittest
 
-PKG = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "oathkey")
+PKG = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "stuntkey")
 
 
 def _imports(path):
@@ -24,7 +24,7 @@ def _imports(path):
 
 class StdlibOnlyTests(unittest.TestCase):
     def test_no_outside_imports(self):
-        std = set(sys.stdlib_module_names) | {"oathkey", "__future__"}
+        std = set(sys.stdlib_module_names) | {"stuntkey", "__future__"}
         bad = []
         for name in sorted(os.listdir(PKG)):
             if name.endswith(".py"):

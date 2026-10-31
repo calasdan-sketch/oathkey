@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Report a security problem (private)
-    url: https://github.com/calasdan-sketch/oathkey/security/advisories/new
+    url: https://github.com/calasdan-sketch/stuntkey/security/advisories/new
     about: Please do not report security problems in public issues.

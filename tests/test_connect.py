@@ -3,9 +3,9 @@ import os
 import unittest
 
 import _isolation  # noqa: F401  (fake HOME/USERPROFILE for the whole run)
-from oathkey import connect as connect_mod
-from oathkey import store as store_mod
-from oathkey import validate as validate_mod
+from stuntkey import connect as connect_mod
+from stuntkey import store as store_mod
+from stuntkey import validate as validate_mod
 
 SECRET = "sk-test-THIS-IS-A-FAKE-KEY-999"
 

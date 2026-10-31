@@ -1,4 +1,4 @@
-"""MCP configs in `oathkey scan`, `oathkey wrap`, and `oathkey scan --bundle`.
+"""MCP configs in `stuntkey scan`, `stuntkey wrap`, and `stuntkey scan --bundle`.
 
 Every config lives in a temp folder passed as home/root: the real ones are
 never touched. Keys are made up and built from pieces. No network: a URL
@@ -13,11 +13,11 @@ import types
 import unittest
 
 import _isolation  # noqa: F401
-from oathkey import bundle as bundle_mod
-from oathkey import keychain as keychain_mod
-from oathkey import mcpwrap
-from oathkey import recipes as recipes_mod
-from oathkey import scan as scan_mod
+from stuntkey import bundle as bundle_mod
+from stuntkey import keychain as keychain_mod
+from stuntkey import mcpwrap
+from stuntkey import recipes as recipes_mod
+from stuntkey import scan as scan_mod
 
 CATALOG = recipes_mod.load_recipes(recipes_mod.RECIPES_DIR)
 GITHUB = "gh" + "p_" + "aB3dE5fG7hJ9kL1mN3pQ5rS7tU9vW1xY3zA5"[:36]
@@ -94,10 +94,10 @@ class McpScan(unittest.TestCase):
         text = scan_mod.render_text(result) + json.dumps(scan_mod.to_json(result))
         for key in (GITHUB, OPENAI, GENERIC):
             self.assertNotIn(key, text)
-        self.assertIn("oathkey wrap cursor github", text)
+        self.assertIn("stuntkey wrap cursor github", text)
 
     def test_cli_scan_reads_home_configs_and_no_mcp_skips_them(self):
-        from oathkey import cli as cli_mod
+        from stuntkey import cli as cli_mod
         import contextlib
         write(os.path.join(self.home, ".gemini", "settings.json"), json.dumps(
             {"mcpServers": {"g": {"command": "g", "env": {"OPENAI_API_KEY": OPENAI}}}}))
@@ -149,7 +149,7 @@ class Wrap(unittest.TestCase):
         self.assertNotIn(GITHUB, read(path))
         self.assertEqual(entry["env"], {"LOG": "debug"})
         i = entry["args"].index("run")
-        self.assertEqual(entry["args"][i - 2:i + 3], ["-m", "oathkey", "run", "github", "--"])
+        self.assertEqual(entry["args"][i - 2:i + 3], ["-m", "stuntkey", "run", "github", "--"])
         self.assertEqual(entry["args"][i + 3:], ["npx", "-y", "server-github"])
         self.assertEqual(json.loads(read(path))["mcpServers"]["other"], {"command": "x"})
         backups = os.listdir(mcpwrap.backup_dir())

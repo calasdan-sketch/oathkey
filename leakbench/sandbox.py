@@ -39,9 +39,9 @@ def _write(path: str, text: str) -> None:
 
 def _child_env(home: str, canary: str) -> dict[str, str]:
     """A copy of the current environment with home pointed at the sandbox and
-    the canary planted in the usual key variable names. OATHKEY_* is stripped
+    the canary planted in the usual key variable names. STUNTKEY_* is stripped
     so a stray real setting cannot change hook behaviour."""
-    env = {k: v for k, v in os.environ.items() if not k.startswith("OATHKEY_")}
+    env = {k: v for k, v in os.environ.items() if not k.startswith("STUNTKEY_")}
     for var in ("HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA",
                 "XDG_CONFIG_HOME", "XDG_DATA_HOME"):
         env[var] = home

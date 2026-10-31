@@ -4,7 +4,7 @@ import os
 import tempfile
 import unittest
 
-from oathkey import broker, recipes
+from stuntkey import broker, recipes
 
 KEY = "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"   # built at run time
 RECIPE = recipes.load_recipes()["github"]

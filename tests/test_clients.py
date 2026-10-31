@@ -3,7 +3,7 @@ import os
 import tempfile
 import unittest
 
-from oathkey import clients
+from stuntkey import clients
 
 
 class Install(unittest.TestCase):
@@ -20,14 +20,14 @@ class Install(unittest.TestCase):
         got = json.load(open(self.path))
         self.assertEqual(got["theme"], "dark")
         self.assertEqual(got["mcpServers"]["other"], {"command": "x"})
-        self.assertEqual(got["mcpServers"]["oathkey"], clients.server_entry())
+        self.assertEqual(got["mcpServers"]["stuntkey"], clients.server_entry())
         self.assertTrue([f for f in os.listdir(self.d) if ".bak-" in f])
 
     def test_creates_missing_file_and_no_key_inside(self):
         p = clients.plan(os.path.join(self.d, "new", "mcp.json"), "servers")
         clients.apply(p)
         text = open(p["path"]).read()
-        self.assertIn("oathkey", text)
+        self.assertIn("stuntkey", text)
         for bad in ("token", "secret", "api_key", "sk-"):
             self.assertNotIn(bad, text.lower())
 

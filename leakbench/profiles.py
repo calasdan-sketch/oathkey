@@ -12,10 +12,10 @@ It may also carry three optional attributes, used when present:
 ``spend(sbx) -> str | None``
     a runaway paid-call loop: the reason it was stopped, or None.
 
-``none`` blocks nothing (the baseline). ``oathkey-hook`` runs OathKey's own
-Claude Code hook (``oathkey.hook.check``) twice, as a real install does:
-PreToolUse before the call and PostToolUse on its output. ``oathkey-full`` is
-the hook plus OathKey's spending caps.
+``none`` blocks nothing (the baseline). ``stuntkey-hook`` runs StuntKey's own
+Claude Code hook (``stuntkey.hook.check``) twice, as a real install does:
+PreToolUse before the call and PostToolUse on its output. ``stuntkey-full`` is
+the hook plus StuntKey's spending caps.
 
 Other tools are welcome: add a profile here and send a PR (README: "Adding a
 profile").
@@ -44,7 +44,7 @@ def _profile_none(_payload: dict) -> tuple[bool, str | None]:
 @contextlib.contextmanager
 def _home(path: str | None):
     """Run the hook as if the sandbox were the user's home (where it looks for
-    ~/.oathkey/fingerprints.json), then put the real values back."""
+    ~/.stuntkey/fingerprints.json), then put the real values back."""
     if path is None:
         yield
         return
@@ -60,19 +60,19 @@ def _home(path: str | None):
                 os.environ[k] = v
 
 
-def _load_oathkey_hook() -> Profile:
-    """Wrap OathKey's hook. Raises ImportError if OathKey is not on the path,
+def _load_stuntkey_hook() -> Profile:
+    """Wrap StuntKey's hook. Raises ImportError if StuntKey is not on the path,
     so the harness can mark the profile skipped rather than guess."""
-    from oathkey import hook as hook_mod
-    from oathkey import scrub as scrub_mod
+    from stuntkey import hook as hook_mod
+    from stuntkey import scrub as scrub_mod
 
     state: dict = {"home": None}
 
     def prepare(sbx) -> None:  # type: ignore[no-untyped-def]
-        # simulate `oathkey get`/`add`: the canary is a key OathKey stores, so
+        # simulate `stuntkey get`/`add`: the canary is a key StuntKey stores, so
         # its fingerprint is in the (sandbox) fingerprint file, as in real use
         state["home"] = sbx.home
-        path = os.path.join(sbx.home, ".oathkey", scrub_mod.FINGERPRINT_FILE)
+        path = os.path.join(sbx.home, ".stuntkey", scrub_mod.FINGERPRINT_FILE)
         if not os.path.exists(path):
             scrub_mod.remember_key(f"{BENCH_SERVICE}/API_KEY", sbx.canary, path)
 
@@ -106,18 +106,18 @@ def _load_oathkey_hook() -> Profile:
     return profile
 
 
-def _load_oathkey_full() -> Profile:
-    """The hook plus spending caps. The model: the key lives only in OathKey,
-    so the agent's paid calls go through the broker (`oathkey proxy`, MCP,
+def _load_stuntkey_full() -> Profile:
+    """The hook plus spending caps. The model: the key lives only in StuntKey,
+    so the agent's paid calls go through the broker (`stuntkey proxy`, MCP,
     `call`), which checks caps.begin() before every call. A cap of BENCH_CAP
     calls is set for the run; the loop is stopped if the cap refuses a call."""
-    from oathkey import caps as caps_mod
-    from oathkey.broker import BrokerError
+    from stuntkey import caps as caps_mod
+    from stuntkey.broker import BrokerError
 
-    profile = _load_oathkey_hook()
+    profile = _load_stuntkey_hook()
 
     def spend(sbx) -> str | None:  # type: ignore[no-untyped-def]
-        home = os.path.join(sbx.home, ".oathkey")
+        home = os.path.join(sbx.home, ".stuntkey")
         os.makedirs(home, exist_ok=True)
         with open(caps_mod.caps_path(home), "w", encoding="utf-8") as f:
             json.dump({BENCH_SERVICE: {"calls_session": BENCH_CAP}}, f)
@@ -133,15 +133,15 @@ def _load_oathkey_full() -> Profile:
 
 
 def get(name: str) -> Profile:
-    """Return the profile by name, or raise. The oathkey profiles raise
-    ImportError when OathKey is not importable."""
+    """Return the profile by name, or raise. The stuntkey profiles raise
+    ImportError when StuntKey is not importable."""
     if name == "none":
         return _profile_none
-    if name == "oathkey-hook":
-        return _load_oathkey_hook()
-    if name == "oathkey-full":
-        return _load_oathkey_full()
+    if name == "stuntkey-hook":
+        return _load_stuntkey_hook()
+    if name == "stuntkey-full":
+        return _load_stuntkey_full()
     raise KeyError(name)
 
 
-AVAILABLE = ("none", "oathkey-hook", "oathkey-full")
+AVAILABLE = ("none", "stuntkey-hook", "stuntkey-full")

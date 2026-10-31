@@ -7,7 +7,7 @@ import tempfile
 import types
 import unittest
 
-from oathkey import approve, broker, cli as cli_mod, keychain as keychain_mod
+from stuntkey import approve, broker, cli as cli_mod, keychain as keychain_mod
 
 RECIPE = {"service": "t", "display": "T", "env_var": "T_KEY",
           "fields": [{"env_var": "T_KEY", "label": "key", "name": "key"}],
@@ -16,7 +16,7 @@ RECIPE = {"service": "t", "display": "T", "env_var": "T_KEY",
 
 
 def _log(n=4):
-    d = tempfile.mkdtemp(prefix="oathkey-t-")
+    d = tempfile.mkdtemp(prefix="stuntkey-t-")
     log = broker.AuditLog(os.path.join(d, "audit.log"))
     for i in range(n):
         log.write({"service": "t", "method": "GET", "host": "h", "path": "/p",

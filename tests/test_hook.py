@@ -1,4 +1,4 @@
-"""0.5.0: `oathkey hook` - a Claude Code PreToolUse hook that refuses
+"""0.5.0: `stuntkey hook` - a Claude Code PreToolUse hook that refuses
 .env files, and the code that adds it to settings.json without touching
 anyone else's hooks."""
 
@@ -11,8 +11,8 @@ import unittest
 from unittest import mock
 
 import _isolation  # noqa: F401
-from oathkey import cli as cli_mod
-from oathkey import hook as hook_mod
+from stuntkey import cli as cli_mod
+from stuntkey import hook as hook_mod
 
 
 def call(tool, **tool_input):
@@ -65,7 +65,7 @@ class TestDecision(unittest.TestCase):
         reason = hook_mod.decision_json("because")["hookSpecificOutput"]["permissionDecisionReason"]
         self.assertEqual(reason, "because")
         text = hook_mod.REASON.format(what="'.env'")
-        self.assertIn("oathkey run", text)
+        self.assertIn("stuntkey run", text)
 
     def test_ordinary_reads_say_nothing(self):
         self.assertEqual(hook_mod.check(call("Read", file_path="/a/src/app.py")), (0, ""))
@@ -125,8 +125,8 @@ class Settings(unittest.TestCase):
         self.path = os.path.join(self.dir, ".claude", "settings.json")
         # POSIX writes the shell string, Windows the exec form (`command` is
         # the program, `args` the rest): patch both sources of the program
-        for name, fake in (("hook_command", lambda: "/opt/bin/oathkey hook check"),
-                           ("hook_argv", lambda: ["/opt/bin/oathkey", "hook", "check"])):
+        for name, fake in (("hook_command", lambda: "/opt/bin/stuntkey hook check"),
+                           ("hook_argv", lambda: ["/opt/bin/stuntkey", "hook", "check"])):
             p = mock.patch.object(hook_mod, name, fake)
             p.start()
             self.addCleanup(p.stop)
@@ -172,7 +172,7 @@ class TestInstall(Settings):
         self.assertEqual(group["matcher"], hook_mod.MATCHER)
         handler = group["hooks"][0]
         self.assertEqual(handler["type"], "command")
-        self.assertEqual(self.command_of(handler), "/opt/bin/oathkey hook check")
+        self.assertEqual(self.command_of(handler), "/opt/bin/stuntkey hook check")
         self.assertEqual(handler["timeout"], hook_mod.HOOK_TIMEOUT)
         self.assertEqual(handler["statusMessage"], hook_mod.MARKER)
         self.assertIn("Restart Claude Code", out)
@@ -200,8 +200,8 @@ class TestInstall(Settings):
         self.assertEqual(data["hooks"]["PreToolUse"][0], mine)
         self.assertEqual(len(data["hooks"]["PreToolUse"]), 2)
 
-    def test_a_hook_that_only_mentions_oathkey_is_not_ours(self):
-        foreign = {"matcher": "Bash", "hooks": [{"type": "command", "command": "oathkey scan"}]}
+    def test_a_hook_that_only_mentions_stuntkey_is_not_ours(self):
+        foreign = {"matcher": "Bash", "hooks": [{"type": "command", "command": "stuntkey scan"}]}
         self.put({"hooks": {"PreToolUse": [foreign]}})
         self.hook("install")
         self.hook("uninstall")
@@ -209,11 +209,11 @@ class TestInstall(Settings):
 
     def test_a_stale_command_is_updated_not_duplicated(self):
         self.put({"hooks": {"PreToolUse": [{"matcher": "Read", "hooks": [
-            {"type": "command", "command": "/old/path/oathkey hook check", "timeout": 99}]}]}})
+            {"type": "command", "command": "/old/path/stuntkey hook check", "timeout": 99}]}]}})
         self.hook("install")
         groups = self.get()["hooks"]["PreToolUse"]
         self.assertEqual(len(groups), 1)
-        self.assertEqual(self.command_of(groups[0]["hooks"][0]), "/opt/bin/oathkey hook check")
+        self.assertEqual(self.command_of(groups[0]["hooks"][0]), "/opt/bin/stuntkey hook check")
         self.assertEqual(groups[0]["hooks"][0]["timeout"], hook_mod.HOOK_TIMEOUT)
 
     def test_every_change_keeps_its_own_backup_outside_the_folder(self):
@@ -221,7 +221,7 @@ class TestInstall(Settings):
         self.put({"model": "opus"})
         self.hook("install")
         self.hook("uninstall")
-        self.assertFalse(os.path.exists(self.path + ".oathkey-backup"))
+        self.assertFalse(os.path.exists(self.path + ".stuntkey-backup"))
         names = sorted(os.listdir(hook_mod.backup_dir()))
         self.assertEqual(len(names), 2)
         with open(os.path.join(hook_mod.backup_dir(), names[0]), encoding="utf-8") as f:
@@ -283,7 +283,7 @@ class TestUninstallAndStatus(Settings):
     def test_a_shared_group_keeps_its_other_handlers(self):
         shared = {"matcher": "Bash", "hooks": [
             {"type": "command", "command": "/x/a.sh"},
-            {"type": "command", "command": "/opt/bin/oathkey hook check"}]}
+            {"type": "command", "command": "/opt/bin/stuntkey hook check"}]}
         self.put({"hooks": {"PreToolUse": [shared]}})
         self.hook("uninstall")
         self.assertEqual(self.get()["hooks"]["PreToolUse"][0]["hooks"],
@@ -311,7 +311,7 @@ class TestUninstallAndStatus(Settings):
 
 class TestCommand(unittest.TestCase):
     def test_uses_the_installed_program_by_full_path(self):
-        exe = os.path.join(_isolation.mktemp(), "oathkey")
+        exe = os.path.join(_isolation.mktemp(), "stuntkey")
         with mock.patch.object(hook_mod, "console_script", lambda: exe):
             cmd = hook_mod.hook_command()
         self.assertTrue(cmd.endswith(" hook check"))
@@ -321,12 +321,12 @@ class TestCommand(unittest.TestCase):
     def test_falls_back_to_isolated_python(self):
         with mock.patch.object(hook_mod, "console_script", lambda: None):
             cmd = hook_mod.hook_command()
-        self.assertIn(" -I -m oathkey hook check", cmd)
+        self.assertIn(" -I -m stuntkey hook check", cmd)
         self.assertIn(os.path.abspath(sys.executable).replace("\\", "/").split("/")[-1], cmd)
 
     def test_a_path_with_spaces_is_quoted(self):
-        with mock.patch.object(hook_mod, "console_script", lambda: "/opt/my tools/oathkey"):
-            self.assertIn("'/opt/my tools/oathkey'", hook_mod.hook_command()) if os.name != "nt" else None
+        with mock.patch.object(hook_mod, "console_script", lambda: "/opt/my tools/stuntkey"):
+            self.assertIn("'/opt/my tools/stuntkey'", hook_mod.hook_command()) if os.name != "nt" else None
 
     def test_entry_shape_lives_in_one_function(self):
         entry = hook_mod.hook_entry(hook_mod.hook_handler(shell_form=True))

@@ -9,4 +9,4 @@ dist/
 .env.*
 .venv/
 venv/
-packaging/npm/oathkey.pyz
+packaging/npm/stuntkey.pyz

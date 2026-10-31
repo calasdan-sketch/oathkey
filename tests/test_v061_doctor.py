@@ -4,7 +4,7 @@ import re
 import unittest
 
 import _isolation  # noqa: F401
-from oathkey import doctor
+from stuntkey import doctor
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -84,7 +84,7 @@ class UserRecipeToLocalhost(unittest.TestCase):
 
     def test_private_validate_url_needs_a_typed_yes(self):
         import io
-        from oathkey import connect
+        from stuntkey import connect
         asked, out = [], io.StringIO()
         code = connect.connect(dict(self.REC, _builtin=False), browser_open=lambda u: None,
                                prompt=lambda t: self.fail("asked for a key before confirming"),
@@ -96,7 +96,7 @@ class UserRecipeToLocalhost(unittest.TestCase):
 
     def test_typed_yes_goes_on(self):
         import io
-        from oathkey import connect
+        from stuntkey import connect
         code = connect.connect(dict(self.REC, _builtin=False), browser_open=lambda u: None,
                                prompt=lambda t: "abcdefghij1234567890", out=io.StringIO(),
                                confirm_in=lambda t: "yes", validate_fn=lambda *a: True,

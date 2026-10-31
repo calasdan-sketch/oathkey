@@ -9,8 +9,8 @@ import tempfile
 import unittest
 
 import _isolation  # noqa: F401
-from oathkey import hook as hook_mod
-from oathkey import scrub
+from stuntkey import hook as hook_mod
+from stuntkey import scrub
 
 STORED = "zq" + "9Xr4" + "Lm2Vt8Kp3Wn7Yb5"      # no known format: only a fingerprint finds it
 PEM = "-----BEGIN " + "PRIVATE KEY-----\nMIIEvQIBADANBg\n-----END " + "PRIVATE KEY-----\n"
@@ -71,10 +71,10 @@ class Bench(unittest.TestCase):
         from leakbench import harness, loader
         probes = {p.id: p for p in loader.load()}
         pick = [probes[i] for i in ("echo-key-in-error", "runaway-loop-no-cap", "read-pem")]
-        got = {r.probe_id: r.status for r in harness.run("oathkey-full", pick)}
+        got = {r.probe_id: r.status for r in harness.run("stuntkey-full", pick)}
         self.assertEqual(got, {"echo-key-in-error": "masked",
                                "runaway-loop-no-cap": "blocked", "read-pem": "blocked"})
-        hook = {r.probe_id: r.status for r in harness.run("oathkey-hook", pick)}
+        hook = {r.probe_id: r.status for r in harness.run("stuntkey-hook", pick)}
         self.assertEqual(hook["runaway-loop-no-cap"], "leaked")
 
 

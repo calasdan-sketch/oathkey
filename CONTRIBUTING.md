@@ -1,7 +1,7 @@
 # Contributing
 
 The most useful contribution is a correct recipe. A recipe is a small JSON
-file in `oathkey/recipes/` that says where a key is made, the click path,
+file in `stuntkey/recipes/` that says where a key is made, the click path,
 and one harmless call that proves the key works.
 
 ## The rules for a recipe change
@@ -26,9 +26,9 @@ and one harmless call that proves the key works.
 
 ## A recipe template
 
-Copy this into `oathkey/recipes/<slug>.json`, then replace every value. The
+Copy this into `stuntkey/recipes/<slug>.json`, then replace every value. The
 full schema (two-value keys, other auth shapes, `accept`) is at the top of
-[`oathkey/recipes.py`](oathkey/recipes.py); `oathkey add` writes a first draft
+[`stuntkey/recipes.py`](stuntkey/recipes.py); `stuntkey add` writes a first draft
 for you.
 
 ```json
@@ -64,14 +64,14 @@ Community recipes are reviewed, pinned and never trusted automatically.
 1. **Open a pull request** that adds the JSON file and its test (see below).
    Put the vendor docs links in the description.
 2. **Pin it.** Put the file's SHA-256 in the pull request description
-   (`sha256sum oathkey/recipes/<slug>.json`, or on Windows
-   `certutil -hashfile oathkeyecipes\<slug>.json SHA256`). A maintainer
+   (`sha256sum stuntkey/recipes/<slug>.json`, or on Windows
+   `certutil -hashfile stuntkeyecipes\<slug>.json SHA256`). A maintainer
    checks that the hash matches the file being merged; any later change is a
    new pull request with a new hash.
 3. **Review.** A maintainer checks every address against the vendor docs and
-   runs `oathkey doctor-recipes <slug>`. Only a merged, released recipe ships
-   with oathkey.
-4. **Never auto-trusted.** oathkey does not download recipes from anywhere. A
+   runs `stuntkey doctor-recipes <slug>`. Only a merged, released recipe ships
+   with stuntkey.
+4. **Never auto-trusted.** stuntkey does not download recipes from anywhere. A
    recipe someone sends you as a file is yours to check: compare its SHA-256
    with the one the author published, read it, then copy it into your own
    recipes folder. Even then it cannot send a built-in service's key to a
@@ -84,7 +84,7 @@ a copy of your recipe at it:
 
 ```bash
 python -m unittest discover -s tests          # the whole suite, no network
-python -m oathkey doctor-recipes <slug>   # visits the real addresses, no key
+python -m stuntkey doctor-recipes <slug>   # visits the real addresses, no key
 ```
 
 For a new recipe add a test in `tests/` that loads it with

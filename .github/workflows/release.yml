@@ -2,10 +2,10 @@ name: release
 
 # Push a tag like v0.5.1 to publish that version to PyPI. One-time setup on
 # pypi.org: add this repository and workflow (release.yml, environment "pypi")
-# as a trusted publisher of the oathkey project. No token is stored here.
+# as a trusted publisher of the stuntkey project. No token is stored here.
 # After PyPI, the same files get a build-provenance attestation (check one with
-# `gh attestation verify <file> --repo calasdan-sketch/oathkey`) and go on a
-# GitHub release with a SHA256SUMS file, with oathkey.pyz (runs on any
+# `gh attestation verify <file> --repo calasdan-sketch/stuntkey`) and go on a
+# GitHub release with a SHA256SUMS file, with stuntkey.pyz (runs on any
 # Python 3.10+) and the Windows portable zip that winget installs.
 #
 # A release only goes out when ALL of these hold: the tag matches the version
@@ -79,16 +79,16 @@ jobs:
         run: |
           python -m venv "${RUNNER_TEMP}/wheel-venv"
           "${RUNNER_TEMP}/wheel-venv/bin/pip" install dist/*.whl
-          "${RUNNER_TEMP}/wheel-venv/bin/oathkey" --version
+          "${RUNNER_TEMP}/wheel-venv/bin/stuntkey" --version
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: dist
           path: dist/
       # Kept out of dist/: PyPI takes only the sdist and the wheel.
-      - name: Build the one-file oathkey.pyz and the Windows portable zip
+      - name: Build the one-file stuntkey.pyz and the Windows portable zip
         run: |
           python scripts/build_pyz.py standalone
-          python standalone/oathkey.pyz --version
+          python standalone/stuntkey.pyz --version
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: standalone

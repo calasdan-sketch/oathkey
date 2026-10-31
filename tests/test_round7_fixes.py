@@ -28,13 +28,13 @@ import urllib.request
 from unittest import mock
 
 import _isolation  # noqa: F401  (fake HOME/USERPROFILE for the whole run)
-from oathkey import __version__
-from oathkey import cli as cli_mod
-from oathkey import connect as connect_mod
-from oathkey import keychain as keychain_mod
-from oathkey import publicapis as pa_mod
-from oathkey import recipes as recipes_mod
-from oathkey import validate as validate_mod
+from stuntkey import __version__
+from stuntkey import cli as cli_mod
+from stuntkey import connect as connect_mod
+from stuntkey import keychain as keychain_mod
+from stuntkey import publicapis as pa_mod
+from stuntkey import recipes as recipes_mod
+from stuntkey import validate as validate_mod
 
 REPO = _isolation.REPO
 
@@ -584,14 +584,14 @@ class TestForgetTwiceWithARealCommand(unittest.TestCase):
         env.update(PATH=tools + os.pathsep + env.get("PATH", ""),
                    FAKE_SECRETS=secrets, PYTHONPATH=REPO)
         subprocess.run([tool, "store", "--label", "x", "service",
-                        "oathkey", "account", "GITHUB_TOKEN", "slug",
+                        "stuntkey", "account", "GITHUB_TOKEN", "slug",
                         "github"], input=SECRET.encode(), env=env, check=True,
                        cwd=work, timeout=60)
         self.assertEqual(os.listdir(secrets), ["GITHUB_TOKEN"])
 
         def forget():
             proc = subprocess.run(
-                [sys.executable, "-m", "oathkey", "forget", "github",
+                [sys.executable, "-m", "stuntkey", "forget", "github",
                  "--env-file", os.path.join(work, ".env")],
                 capture_output=True, env=env, cwd=work, timeout=120)
             return (proc.returncode, proc.stdout.decode("utf-8", "replace"),

@@ -14,11 +14,11 @@ import unittest
 from unittest import mock
 
 import _isolation  # noqa: F401
-from oathkey import cli as cli_mod
-from oathkey import clipboard as clip_mod
-from oathkey import connect as connect_mod
-from oathkey import keychain as keychain_mod
-from oathkey import safeprompt
+from stuntkey import cli as cli_mod
+from stuntkey import clipboard as clip_mod
+from stuntkey import connect as connect_mod
+from stuntkey import keychain as keychain_mod
+from stuntkey import safeprompt
 
 # a key-looking value built from pieces (no real-looking literal in the source)
 COPIED = "tok" + "_" + "Aa1Bb2Cc3Dd4Ee5Ff6Gg7Hh8Ii9Jj0Kk1Ll2Mm3"

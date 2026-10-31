@@ -1,4 +1,4 @@
-"""0.6.0: oathkey.json, the local record, init / setup / status."""
+"""0.6.0: stuntkey.json, the local record, init / setup / status."""
 import datetime
 import io
 import json
@@ -7,10 +7,10 @@ import unittest
 from unittest import mock
 
 import _isolation  # noqa: F401
-from oathkey import cli as cli_mod
-from oathkey import detect, ledger, manifest, presence, projectcmds
-from oathkey import recipes as recipes_mod
-from oathkey import store as store_mod
+from stuntkey import cli as cli_mod
+from stuntkey import detect, ledger, manifest, presence, projectcmds
+from stuntkey import recipes as recipes_mod
+from stuntkey import store as store_mod
 
 CAT = recipes_mod.load_recipes(recipes_mod.RECIPES_DIR)
 KEY = "sk-test-CANARY-0123456789abcdef"
@@ -474,7 +474,7 @@ class TestSetup(unittest.TestCase):
         self.assertEqual(got, ["openai", "groq"])
         self.assertEqual(code, 1)
         self.assertIn("failed", text)
-        self.assertIn("`oathkey setup` again", text)
+        self.assertIn("`stuntkey setup` again", text)
 
     def test_interrupt_stops_and_names_what_was_not_reached(self):
         d = self.fixture("", "openai", "groq", "stripe")
@@ -531,7 +531,7 @@ class TestSetup(unittest.TestCase):
         out = io.StringIO()
         with cd(proj()):
             self.assertEqual(projectcmds.cmd_setup(A(), CAT, lambda *a: 0, out), 1)
-        self.assertIn("oathkey init", out.getvalue())
+        self.assertIn("stuntkey init", out.getvalue())
 
     def test_all_present_is_a_clean_exit(self):
         d = self.fixture(f"OPENAI_API_KEY={KEY}\n", "openai")
@@ -610,7 +610,7 @@ class TestStatus(unittest.TestCase):
         d = self.fixture("", "openai")
         code, text = self.status(d, os.path.join(_isolation.mktemp(), "i.json"))
         self.assertEqual(code, 1)
-        self.assertIn("oathkey connect openai", text)
+        self.assertIn("stuntkey connect openai", text)
 
     def test_age_and_rotate_hint_beyond_the_limit(self):
         d = self.fixture(f"OPENAI_API_KEY={KEY}\n", "openai")
@@ -621,7 +621,7 @@ class TestStatus(unittest.TestCase):
         code, text = self.status(d, idx, now)
         self.assertEqual(code, 1)
         self.assertIn("120 days old (limit 90)", text)
-        self.assertIn("oathkey rotate openai", text)
+        self.assertIn("stuntkey rotate openai", text)
 
     def test_young_key_no_hint(self):
         d = self.fixture(f"OPENAI_API_KEY={KEY}\n", "openai")
@@ -684,7 +684,7 @@ if __name__ == "__main__":
 class DetectBoundsTests(unittest.TestCase):
     def test_walk_stops_at_dir_cap(self):
         import tempfile, os
-        from oathkey import detect
+        from stuntkey import detect
         with tempfile.TemporaryDirectory() as d:
             for i in range(6):
                 os.makedirs(os.path.join(d, f"d{i}"))
@@ -702,7 +702,7 @@ class DetectBoundsTests(unittest.TestCase):
 class ReadNoFollowTests(unittest.TestCase):
     def test_symlink_not_followed(self):
         import tempfile, os
-        from oathkey import store
+        from stuntkey import store
         if not hasattr(os, "symlink") or not hasattr(os, "O_NOFOLLOW"):
             self.skipTest("no symlinks")
         with tempfile.TemporaryDirectory() as d:

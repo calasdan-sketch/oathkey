@@ -1,5 +1,5 @@
 name: Idea or feature request
-description: Something oathkey should do
+description: Something stuntkey should do
 labels: [enhancement]
 body:
   - type: textarea

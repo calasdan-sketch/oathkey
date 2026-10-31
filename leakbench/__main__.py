@@ -1,4 +1,4 @@
-"""``python -m leakbench --profile none|oathkey-hook [--json]``."""
+"""``python -m leakbench --profile none|stuntkey-hook [--json]``."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         results = harness.run(args.profile)
     except ImportError:
-        print(f"profile '{args.profile}' unavailable: OathKey is not importable "
+        print(f"profile '{args.profile}' unavailable: StuntKey is not importable "
               f"(install it or run from the repo).", file=sys.stderr)
         return 2
 

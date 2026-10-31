@@ -5,7 +5,7 @@ import tempfile
 import unittest
 
 import _isolation  # noqa: F401
-from oathkey import agent, recipes
+from stuntkey import agent, recipes
 
 CAT = recipes.load_recipes(recipes.RECIPES_DIR)
 SECRET = "sk-proj-Zk3pQ9vL2mXw8RtY5uBn7HcD"

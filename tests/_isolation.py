@@ -2,7 +2,7 @@
 
 Importing this module points HOME / USERPROFILE / APPDATA / LOCALAPPDATA /
 XDG_* at a throwaway directory for the whole test process, so no test can
-read or write the real user's ~/.oathkey (user recipes, directory
+read or write the real user's ~/.stuntkey (user recipes, directory
 cache) or their real .env. The directory is removed at exit with a
 cleanup that tolerates read-only files (Windows).
 """
@@ -114,15 +114,15 @@ def _cleanup() -> None:
 
 
 _TEMP_DIRS: list = []
-FAKE_HOME = os.environ.get("OATHKEY_TEST_HOME") or tempfile.mkdtemp(prefix="seh")
+FAKE_HOME = os.environ.get("STUNTKEY_TEST_HOME") or tempfile.mkdtemp(prefix="seh")
 for _var in ENV_VARS:
     os.environ[_var] = FAKE_HOME
-os.environ["OATHKEY_TEST_HOME"] = FAKE_HOME  # subprocesses share it
+os.environ["STUNTKEY_TEST_HOME"] = FAKE_HOME  # subprocesses share it
 atexit.register(_cleanup)
 
 # the consent folder comes from the system's user database, not from $HOME:
 # keep tests out of the real one
-from oathkey import consent as _consent  # noqa: E402
+from stuntkey import consent as _consent  # noqa: E402
 _consent.home_dir = lambda: FAKE_HOME
 
 
@@ -151,7 +151,7 @@ def custom_patterns_allowed():
     around such recipes (what is asked, what is sent) are about something else,
     so they run with a no-op timer there; elsewhere nothing is changed."""
     from unittest import mock
-    from oathkey import scan as scan_mod
+    from stuntkey import scan as scan_mod
     if scan_mod.user_patterns_usable():
         yield
         return

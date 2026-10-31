@@ -6,7 +6,7 @@ import unittest
 from unittest import mock
 
 import _isolation  # noqa: F401
-from oathkey import hook as hook_mod
+from stuntkey import hook as hook_mod
 
 from test_hook import Settings, call, denied
 
@@ -37,8 +37,8 @@ class TestWritesRefused(unittest.TestCase):
         _, out = hook_mod.check(call("Write", file_path="/app/.env", content="K=1"))
         reason = json.loads(out)["hookSpecificOutput"]["permissionDecisionReason"]
         self.assertIn("Claude can't write to '.env' - your keys stay out of the chat. "
-                      "Call the oathkey tool `capture_key`", reason)
-        self.assertIn("oathkey connect <service>", reason)
+                      "Call the stuntkey tool `capture_key`", reason)
+        self.assertIn("stuntkey connect <service>", reason)
 
     def test_reads_keep_the_read_message(self):
         _, out = hook_mod.check(call("Read", file_path="/app/.env"))
@@ -62,7 +62,7 @@ class TestOptOut(unittest.TestCase):
 class TestUpgrade(Settings):
     def old_group(self):
         return {"matcher": OLD_MATCHER, "hooks": [
-            {"type": "command", "command": "/opt/bin/oathkey hook check",
+            {"type": "command", "command": "/opt/bin/stuntkey hook check",
              "statusMessage": hook_mod.MARKER}]}
 
     def test_install_upgrades_our_matcher_and_leaves_foreign_hooks(self):

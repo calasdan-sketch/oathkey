@@ -10,10 +10,10 @@ import urllib.parse
 from unittest import mock
 
 import _isolation  # noqa: F401
-from oathkey import agent, manifest
-from oathkey import cli as cli_mod
-from oathkey import mcp as mcp_mod
-from oathkey import recipes as recipes_mod
+from stuntkey import agent, manifest
+from stuntkey import cli as cli_mod
+from stuntkey import mcp as mcp_mod
+from stuntkey import recipes as recipes_mod
 
 CAT = recipes_mod.load_recipes(recipes_mod.RECIPES_DIR)
 CANARY_ENV = "sk-CANARYENV-9f8e7d6c5b4a39281706"
@@ -80,7 +80,7 @@ class TestRequestConnect(Base):
         self.assertEqual(r["service"], "groq")
         self.assertEqual(r["env_var"], "GROQ_API_KEY")
         self.assertEqual(r["status"], "missing")
-        self.assertIn("oathkey connect groq", r["instructions"])
+        self.assertIn("stuntkey connect groq", r["instructions"])
 
     def test_only_whitelisted_fields(self):
         r = json.loads(call("request_connect", {"service": "groq"}, self.d)["result"]["content"][0]["text"])
@@ -95,7 +95,7 @@ class TestRequestConnect(Base):
     def test_manifest_keychain_store_is_unknown_not_read(self):
         with open(os.path.join(self.d, manifest.FILE_NAME), "w") as f:
             json.dump({"version": 1, "services": [{"service": "groq", "store": "keychain"}]}, f)
-        with mock.patch("oathkey.keychain.read", side_effect=AssertionError("keychain read")):
+        with mock.patch("stuntkey.keychain.read", side_effect=AssertionError("keychain read")):
             r = json.loads(call("request_connect", {"service": "groq"}, self.d)["result"]["content"][0]["text"])
         self.assertEqual(r["status"], "unknown")
         self.assertIn("--store keychain", r["instructions"])
@@ -167,7 +167,7 @@ class TestNeedsKeys(Base):
         status = {s["service"]: s["status"] for s in r["services"]}
         self.assertEqual(status, {"groq": "missing", "openai": "missing", "stripe": "present", "tavily": "missing"})
         self.assertEqual(r["missing"], ["groq", "openai", "tavily"])
-        self.assertIn("oathkey setup", r["instructions"])
+        self.assertIn("stuntkey setup", r["instructions"])
 
     def test_the_process_environment_is_not_counted_as_present(self):
         # OPENAI_API_KEY is in os.environ (a canary) but not stored in the project
@@ -178,7 +178,7 @@ class TestNeedsKeys(Base):
         with open(os.path.join(self.d, manifest.FILE_NAME), "w") as f:
             json.dump({"version": 1, "services": [{"service": "mistral"}]}, f)
         r = json.loads(call("needs_keys", {"project": self.d}, self.d)["result"]["content"][0]["text"])
-        self.assertEqual(r["source"], "oathkey.json")
+        self.assertEqual(r["source"], "stuntkey.json")
         self.assertIn("mistral", [s["service"] for s in r["services"]])
 
     def test_nothing_missing(self):
@@ -212,7 +212,7 @@ class TestNeedsKeys(Base):
         with open(os.path.join(self.d, manifest.FILE_NAME), "w") as f:
             f.write("{bad")
         r = json.loads(call("needs_keys", {"project": self.d}, self.d)["result"]["content"][0]["text"])
-        self.assertNotEqual(r["source"], "oathkey.json")
+        self.assertNotEqual(r["source"], "stuntkey.json")
 
 
 class TestNoSecretCanLeave(Base):
@@ -341,7 +341,7 @@ class TestCliJsonNeverCarriesAValue(Base):
     def test_status_json(self):
         with open(os.path.join(self.d, manifest.FILE_NAME), "w") as f:
             json.dump({"version": 1, "services": [{"service": "stripe"}, {"service": "openai"}]}, f)
-        with mock.patch("oathkey.keychain.detect_backend", return_value=None):
+        with mock.patch("stuntkey.keychain.detect_backend", return_value=None):
             text = self.run_cli("status", "--json")
         self.assertIn('"stripe"', text)
         self.assertClean(text, "status --json")
@@ -351,7 +351,7 @@ class TestCliJsonNeverCarriesAValue(Base):
         self.assertClean(self.run_cli("list"), "list")
 
     def test_doctor_json(self):
-        from oathkey import doctor
+        from stuntkey import doctor
         with mock.patch.object(doctor, "fetch", return_value=(200, None, None)):
             text = self.run_cli("doctor-recipes", "--json", "stripe")
         self.assertClean(text)

@@ -22,8 +22,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from unittest import mock
 
 import _isolation  # noqa: F401  (fake HOME/USERPROFILE for the whole run)
-from oathkey import connect as connect_mod
-from oathkey import validate as validate_mod
+from stuntkey import connect as connect_mod
+from stuntkey import validate as validate_mod
 
 CURLY = chr(0x2019)
 EMOJI = chr(0x1F331)

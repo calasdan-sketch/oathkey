@@ -4,7 +4,7 @@ import unittest
 from unittest import mock
 
 import _isolation  # noqa: F401  (fake HOME/USERPROFILE for the whole run)
-from oathkey import keychain, scrub
+from stuntkey import keychain, scrub
 
 
 class KeychainKeepsFingerprints(unittest.TestCase):

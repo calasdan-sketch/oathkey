@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "safeeasyapi"
 version = "0.9.0"
-description = "safeeasyapi has been renamed to oathkey. This package only installs oathkey and points to it."
+description = "safeeasyapi has been renamed to stuntkey. This package only installs stuntkey and points to it."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Calas Automations Inc." }]
-dependencies = ["oathkey>=0.8.0"]
+dependencies = ["stuntkey>=0.8.0"]
 classifiers = [
     "Development Status :: 7 - Inactive",
     "License :: OSI Approved :: MIT License",
@@ -18,9 +18,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/calasdan-sketch/oathkey"
-Source = "https://github.com/calasdan-sketch/oathkey"
-Issues = "https://github.com/calasdan-sketch/oathkey/issues"
+Homepage = "https://github.com/calasdan-sketch/stuntkey"
+Source = "https://github.com/calasdan-sketch/stuntkey"
+Issues = "https://github.com/calasdan-sketch/stuntkey/issues"
 
 [project.scripts]
 safeeasyapi = "safeeasyapi:main"

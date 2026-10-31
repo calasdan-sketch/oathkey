@@ -1,4 +1,4 @@
-"""oathkey.pyz, the npx shim, `start --simple` and the check after `install`."""
+"""stuntkey.pyz, the npx shim, `start --simple` and the check after `install`."""
 import json
 import os
 import shutil
@@ -7,7 +7,7 @@ import sys
 import unittest
 
 import _isolation
-from oathkey import clients, cmds, recipes as recipes_mod
+from stuntkey import clients, cmds, recipes as recipes_mod
 
 REPO = _isolation.REPO
 sys.path.insert(0, os.path.join(REPO, "scripts"))
@@ -42,19 +42,19 @@ class Pyz(unittest.TestCase):
     def test_the_skill_file_loads_from_the_pyz(self):
         r = self.run_pyz("skill", "install", "--project", "--yes")
         self.assertEqual(r.returncode, 0, r.stderr)
-        with open(os.path.join(REPO, "oathkey", "skill", "SKILL.md"), encoding="utf-8") as f:
+        with open(os.path.join(REPO, "stuntkey", "skill", "SKILL.md"), encoding="utf-8") as f:
             want = f.read()
-        with open(os.path.join(self.home, ".claude", "skills", "oathkey", "SKILL.md"),
+        with open(os.path.join(self.home, ".claude", "skills", "stuntkey", "SKILL.md"),
                   encoding="utf-8") as f:
             self.assertEqual(f.read(), want)
 
     def test_mcp_entries_start_the_pyz_again(self):
-        code = ("import oathkey; oathkey.PYZ = 'C:/x/oathkey.pyz'; "
-                "from oathkey import clients; print(clients.server_entry(False)['args'])")
+        code = ("import stuntkey; stuntkey.PYZ = 'C:/x/stuntkey.pyz'; "
+                "from stuntkey import clients; print(clients.server_entry(False)['args'])")
         r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
                            cwd=REPO)
-        self.assertIn("'C:/x/oathkey.pyz', 'mcp'", r.stdout)
-        self.assertEqual(clients.self_args(), ["-m", "oathkey"])
+        self.assertIn("'C:/x/stuntkey.pyz', 'mcp'", r.stdout)
+        self.assertEqual(clients.self_args(), ["-m", "stuntkey"])
 
     def test_hook_install_is_refused_from_the_pyz(self):
         r = self.run_pyz("hook", "install")
@@ -64,7 +64,7 @@ class Pyz(unittest.TestCase):
     def test_the_windows_zip_has_the_launcher(self):
         import zipfile
         with zipfile.ZipFile(self.win) as z:
-            self.assertEqual(sorted(z.namelist()), ["LICENSE", "oathkey.cmd", "oathkey.pyz"])
+            self.assertEqual(sorted(z.namelist()), ["LICENSE", "stuntkey.cmd", "stuntkey.pyz"])
 
 
 @unittest.skipUnless(shutil.which("node"), "node is not installed")
@@ -73,14 +73,14 @@ class NpmShim(unittest.TestCase):
         self.pkg = _isolation.mktemp()
         src = os.path.join(REPO, "packaging", "npm")
         shutil.copytree(os.path.join(src, "bin"), os.path.join(self.pkg, "bin"))
-        self.js = os.path.join(self.pkg, "bin", "oathkey.js")
+        self.js = os.path.join(self.pkg, "bin", "stuntkey.js")
 
     def test_runs_the_bundled_pyz(self):
         pyz, _ = build_pyz.build(self.pkg)
         self.assertTrue(os.path.exists(pyz))
         r = subprocess.run(["node", self.js, "--version"], capture_output=True, text=True,
                            env=_env(_isolation.mktemp()), timeout=120)
-        from oathkey import __version__
+        from stuntkey import __version__
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn(__version__, r.stdout)
 
@@ -117,7 +117,7 @@ class StartSimple(unittest.TestCase):
                       text.replace("Never", "never"))
         self.assertIn("OPENAI_API_KEY", text)
         self.assertIn("https://vercel.com/docs/environment-variables", text)
-        self.assertIn("oathkey export openai --to vercel", text)
+        self.assertIn("stuntkey export openai --to vercel", text)
 
     def test_enter_stops_and_a_failed_get_stops(self):
         self.assertEqual(self.go([""])[2], [])

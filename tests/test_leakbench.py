@@ -1,6 +1,6 @@
-"""Tests for the Agent Leak Benchmark harness itself (not for OathKey).
+"""Tests for the Agent Leak Benchmark harness itself (not for StuntKey).
 
-Skip-safe: the oathkey-hook profile tests skip when OathKey is not importable,
+Skip-safe: the stuntkey-hook profile tests skip when StuntKey is not importable,
 so this file never breaks a run on a machine without it. Every test plants its
 secrets in a throwaway sandbox and never touches the real home.
 """
@@ -18,9 +18,9 @@ from leakbench.runner import Result, run_probe
 MIN_PROBES = 50
 
 
-def _oathkey_available() -> bool:
+def _stuntkey_available() -> bool:
     try:
-        importlib.import_module("oathkey.hook")
+        importlib.import_module("stuntkey.hook")
         return True
     except ImportError:
         return False
@@ -64,10 +64,10 @@ class SandboxPlanting(unittest.TestCase):
             sandbox.destroy(sbx)
         self.assertFalse(os.path.exists(sbx.home))
 
-    def test_sandbox_env_strips_oathkey_vars(self):
+    def test_sandbox_env_strips_stuntkey_vars(self):
         sbx = sandbox.build()
         try:
-            self.assertFalse(any(k.startswith("OATHKEY_") for k in sbx.env))
+            self.assertFalse(any(k.startswith("STUNTKEY_") for k in sbx.env))
         finally:
             sandbox.destroy(sbx)
 
@@ -98,12 +98,12 @@ class RunnerWithNoneProfile(unittest.TestCase):
         self.assertIsInstance(r, Result)
 
 
-class RunnerWithOathkeyHook(unittest.TestCase):
+class RunnerWithStuntkeyHook(unittest.TestCase):
     def setUp(self):
-        if not _oathkey_available():
-            self.skipTest("oathkey not importable")
+        if not _stuntkey_available():
+            self.skipTest("stuntkey not importable")
         self.sbx = sandbox.build()
-        self.hook = profiles.get("oathkey-hook")
+        self.hook = profiles.get("stuntkey-hook")
 
     def tearDown(self):
         if hasattr(self, "sbx"):
@@ -113,29 +113,29 @@ class RunnerWithOathkeyHook(unittest.TestCase):
         return next(p for p in loader.load() if p.id == probe_id)
 
     def test_hook_blocks_env_read(self):
-        r = run_probe(self._probe("read-env"), self.sbx, self.hook, "oathkey-hook")
+        r = run_probe(self._probe("read-env"), self.sbx, self.hook, "stuntkey-hook")
         self.assertEqual(r.status, "blocked")
 
     def test_hook_blocks_proc_environ(self):
-        r = run_probe(self._probe("proc-self-environ"), self.sbx, self.hook, "oathkey-hook")
+        r = run_probe(self._probe("proc-self-environ"), self.sbx, self.hook, "stuntkey-hook")
         self.assertEqual(r.status, "blocked")
 
     def test_hook_blocks_plain_env_dump(self):
         # closed in 0.9.0: the hook refuses commands that print the environment
-        r = run_probe(self._probe("env-dump"), self.sbx, self.hook, "oathkey-hook")
+        r = run_probe(self._probe("env-dump"), self.sbx, self.hook, "stuntkey-hook")
         self.assertEqual(r.status, "blocked")
 
     def test_hook_blocks_pem_read(self):
         # closed in wave 3: a Read of a private key is refused before it runs
-        r = run_probe(self._probe("read-pem"), self.sbx, self.hook, "oathkey-hook")
+        r = run_probe(self._probe("read-pem"), self.sbx, self.hook, "stuntkey-hook")
         self.assertEqual(r.status, "blocked")
 
     def test_hook_masks_bash_output_after_it_runs(self):
-        r = run_probe(self._probe("cat-log-with-key"), self.sbx, self.hook, "oathkey-hook")
+        r = run_probe(self._probe("cat-log-with-key"), self.sbx, self.hook, "stuntkey-hook")
         self.assertEqual(r.status, "masked")
 
     def test_hook_does_not_see_a_written_script_run(self):
-        r = run_probe(self._probe("script-prints-environ"), self.sbx, self.hook, "oathkey-hook")
+        r = run_probe(self._probe("script-prints-environ"), self.sbx, self.hook, "stuntkey-hook")
         self.assertEqual(r.status, "leaked")
 
 

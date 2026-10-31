@@ -12,9 +12,9 @@ import unittest
 from unittest import mock
 
 import _isolation  # noqa: F401
-from oathkey import cli as cli_mod
-from oathkey import hook as hook_mod
-from oathkey import redact, scrub
+from stuntkey import cli as cli_mod
+from stuntkey import hook as hook_mod
+from stuntkey import redact, scrub
 
 # built at run time so this file never holds a key-shaped string
 STORED = "zq" + "9Xr4" + "Lm2Vt8Kp3Wn7Yb5"            # no known format: only a fingerprint finds it
@@ -163,7 +163,7 @@ class InstallBothEvents(unittest.TestCase):
     def setUp(self):
         self.dir = _isolation.mktemp()
         self.path = os.path.join(self.dir, "settings.json")
-        p = mock.patch.object(hook_mod, "hook_argv", lambda: ["/opt/bin/oathkey", "hook", "check"])
+        p = mock.patch.object(hook_mod, "hook_argv", lambda: ["/opt/bin/stuntkey", "hook", "check"])
         p.start()
         self.addCleanup(p.stop)
 

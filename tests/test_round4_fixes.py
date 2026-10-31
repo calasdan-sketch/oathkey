@@ -27,13 +27,13 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from unittest import mock
 
 import _isolation
-from oathkey import cli as cli_mod
-from oathkey import connect as connect_mod
-from oathkey import keychain as keychain_mod
-from oathkey import mcp as mcp_mod
-from oathkey import recipes as recipes_mod
-from oathkey import store as store_mod
-from oathkey import validate as validate_mod
+from stuntkey import cli as cli_mod
+from stuntkey import connect as connect_mod
+from stuntkey import keychain as keychain_mod
+from stuntkey import mcp as mcp_mod
+from stuntkey import recipes as recipes_mod
+from stuntkey import store as store_mod
+from stuntkey import validate as validate_mod
 
 REPO = _isolation.REPO
 FAKE_KEY = "sk-test-THIS-IS-A-FAKE-KEY-999"
@@ -141,7 +141,7 @@ class TestRegistrableDomain(unittest.TestCase):
             builtin, out, confirm_in=boom))
         self.assertIn("built-in recipe", out.getvalue())
         # a user recipe overriding a built-in slug loses the trust too
-        path = recipes_mod.save_recipe(builtin)   # -> ~/.oathkey/recipes
+        path = recipes_mod.save_recipe(builtin)   # -> ~/.stuntkey/recipes
         try:
             self.assertFalse(recipes_mod.load_recipes()["anthropic"]["_builtin"])
         finally:
@@ -654,10 +654,10 @@ class TestReadme(unittest.TestCase):
         self.assertNotIn("python3", text)
         self.assertNotIn("alias seapi", text)
         self.assertNotIn("git clone <repo>", text)
-        self.assertIn("pip install git+https://github.com/calasdan-sketch/oathkey", text)
+        self.assertIn("pip install git+https://github.com/calasdan-sketch/stuntkey", text)
         self.assertIn('"command": "python"', text)
         self.assertIn("winpty", text)
-        self.assertIn("oathkey forget", text)
+        self.assertIn("stuntkey forget", text)
         self.assertIn("registrable", text)
         for slug in TestShippedCatalog.EXPECTED:
             self.assertIn(f"`{slug}`", text, slug)

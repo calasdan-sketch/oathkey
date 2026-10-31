@@ -22,16 +22,16 @@ import zipfile
 
 import _isolation
 
-LEFTOVERS = ["build/lib/oathkey/stale.py",
-             "dist/oathkey-0.0.1-py3-none-any.whl",
-             "oathkey.egg-info/PKG-INFO",
+LEFTOVERS = ["build/lib/stuntkey/stale.py",
+             "dist/stuntkey-0.0.1-py3-none-any.whl",
+             "stuntkey.egg-info/PKG-INFO",
              ".git/config", ".venv/pyvenv.cfg", ".pytest_cache/README",
-             "oathkey/__pycache__/cli.cpython-311.pyc",
-             "oathkey/__pycache__/notes.txt",
-             "oathkey/legacy.pyc",
+             "stuntkey/__pycache__/cli.cpython-311.pyc",
+             "stuntkey/__pycache__/notes.txt",
+             "stuntkey/legacy.pyc",
              "tests/__pycache__/test_a.cpython-311.pyc"]
 KEPT = ["pyproject.toml", "README.md", "MANIFEST.in",
-        "oathkey/__init__.py", "oathkey/recipes/github.json",
+        "stuntkey/__init__.py", "stuntkey/recipes/github.json",
         "tests/_isolation.py", "tests/test_a.py"]
 
 
@@ -75,10 +75,10 @@ class TestCleanSourceCopy(unittest.TestCase):
     def test_only_the_top_level_folders_are_leftovers(self):
         # a package may have a folder of its own called build
         root = project()
-        write(root, "oathkey/build/step.py")
+        write(root, "stuntkey/build/step.py")
         copy = _isolation.clean_source_copy(root, use_git=False)
-        self.assertIn("oathkey/build/step.py", listing(copy))
-        self.assertNotIn("build/lib/oathkey/stale.py", listing(copy))
+        self.assertIn("stuntkey/build/step.py", listing(copy))
+        self.assertNotIn("build/lib/stuntkey/stale.py", listing(copy))
 
     @unittest.skipUnless(shutil.which("git"), "needs git")
     def test_with_git_it_is_what_git_would_commit(self):
@@ -87,11 +87,11 @@ class TestCleanSourceCopy(unittest.TestCase):
         write(root, ".gitignore",
               "build/\ndist/\n*.egg-info/\n.venv/\n.pytest_cache/\n"
               "__pycache__/\n*.py[cod]\n*.log\n")
-        write(root, "oathkey/new_module.py")     # untracked, not ignored
+        write(root, "stuntkey/new_module.py")     # untracked, not ignored
         write(root, "debug.log")                     # ignored, and not on any list
         git(root, "add", "pyproject.toml")
         names = listing(_isolation.clean_source_copy(root))
-        self.assertIn("oathkey/new_module.py", names)
+        self.assertIn("stuntkey/new_module.py", names)
         self.assertIn(".gitignore", names)
         self.assertNotIn("debug.log", names)
         for leftover in LEFTOVERS:
@@ -121,7 +121,7 @@ class TestCleanSourceCopy(unittest.TestCase):
     def test_the_real_checkout_gives_the_package_and_no_leftovers(self):
         names = listing(_isolation.clean_source_copy())
         for needed in ("pyproject.toml", "MANIFEST.in",
-                       "oathkey/cli.py", "oathkey/recipes/github.json",
+                       "stuntkey/cli.py", "stuntkey/recipes/github.json",
                        "tests/_isolation.py"):
             self.assertIn(needed, names)
         junk = [n for n in names
@@ -201,7 +201,7 @@ class TestBuilt(unittest.TestCase):
         self.assertIn("tests/_isolation.py", want)
         self.assertEqual([n for n in want if n not in names], [])
         for needed in ("pyproject.toml", "README.md", "LICENSE", "MANIFEST.in",
-                       "oathkey/cli.py", "oathkey/recipes/github.json"):
+                       "stuntkey/cli.py", "stuntkey/recipes/github.json"):
             self.assertIn(needed, names)
         self.assertEqual([n for n in names
                           if n.startswith(("build/", "dist/", ".git/"))
@@ -225,21 +225,21 @@ class TestBuilt(unittest.TestCase):
 
     def test_a_stale_build_directory_cannot_reach_the_wheel(self):
         planted = _isolation.clean_source_copy()
-        write(planted, "build/lib/oathkey/zzz_stale.py", "STALE = 1\n")
-        write(planted, "oathkey.egg-info/PKG-INFO", "Metadata-Version: 2.1\n")
+        write(planted, "build/lib/stuntkey/zzz_stale.py", "STALE = 1\n")
+        write(planted, "stuntkey.egg-info/PKG-INFO", "Metadata-Version: 2.1\n")
         names, _ = self.wheel(_isolation.clean_source_copy(planted, use_git=False))
-        self.assertIn("oathkey/cli.py", names)
-        self.assertNotIn("oathkey/zzz_stale.py", names)
+        self.assertIn("stuntkey/cli.py", names)
+        self.assertNotIn("stuntkey/zzz_stale.py", names)
 
     def test_the_wheel_has_the_package_and_nothing_else(self):
         src = _isolation.clean_source_copy()
         want = {n for n in listing(src)
-                if n.startswith("oathkey/")
-                and (n.endswith(".py") or n.startswith(("oathkey/recipes/", "oathkey/skill/")))}
+                if n.startswith("stuntkey/")
+                and (n.endswith(".py") or n.startswith(("stuntkey/recipes/", "stuntkey/skill/")))}
         names, entry_points = self.wheel(src)
         package = {n for n in names if not n.split("/")[0].endswith(".dist-info")}
         self.assertEqual(package, want)
-        self.assertIn(b"oathkey = oathkey.cli:main", entry_points)
+        self.assertIn(b"stuntkey = stuntkey.cli:main", entry_points)
 
 
 if __name__ == "__main__":

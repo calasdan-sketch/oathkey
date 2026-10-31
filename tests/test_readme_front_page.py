@@ -4,7 +4,7 @@ import os
 import re
 import unittest
 
-from oathkey import cli
+from stuntkey import cli
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -39,7 +39,7 @@ def _subcommands():
 class FrontPageTests(unittest.TestCase):
     def test_every_command_in_the_readme_exists(self):
         real = _subcommands()
-        named = set(re.findall(r"`oathkey ([a-z][a-z-]+)", _read("README.md")))
+        named = set(re.findall(r"`stuntkey ([a-z][a-z-]+)", _read("README.md")))
         named -= {"is"}
         self.assertTrue(named, "README names no commands")
         self.assertEqual(sorted(named - real), [], "README names commands that do not exist")
@@ -48,7 +48,7 @@ class FrontPageTests(unittest.TestCase):
         text = _read("README.md")
         for cmd in ("get", "call", "selftest", "doctor", "scan", "install", "audit",
                     "serve", "mcp", "run", "list"):
-            self.assertTrue(f"oathkey {cmd}" in text.replace("`", "") or f"`{cmd}`" in text
+            self.assertTrue(f"stuntkey {cmd}" in text.replace("`", "") or f"`{cmd}`" in text
                             or f"`{cmd} " in text, cmd)
 
     def test_it_points_at_security_and_the_guide(self):
@@ -62,18 +62,18 @@ class FrontPageTests(unittest.TestCase):
 
     def test_no_old_product_name_anywhere(self):
         old = "safe" + "easy" + "api"
-        for folder in ("oathkey", "tests", "docs"):
+        for folder in ("stuntkey", "tests", "docs"):
             for name in os.listdir(os.path.join(REPO, folder)):
                 path = os.path.join(REPO, folder, name)
                 if os.path.isfile(path) and name.endswith((".py", ".md", ".json")):
                     self.assertNotIn(old, _read(folder, name).lower(), path)
         for name in ("README.md", "SECURITY.md", "pyproject.toml"):
             text = "\n".join(line for line in _read(name).splitlines()
-                             if not line.startswith("Coming from the old"))  # the one migration line
+                             if not line.startswith(("Coming from", "- Formerly")))  # the migration lines
             self.assertNotIn(old, text.lower(), name)
 
     def test_version_matches_pyproject(self):
-        from oathkey import __version__
+        from stuntkey import __version__
         m = re.search(r'^version = "([^"]+)"', _read("pyproject.toml"), re.M)
         self.assertEqual(m.group(1), __version__)
 

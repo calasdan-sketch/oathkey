@@ -1,4 +1,4 @@
-"""`oathkey panic`: revoke (fake vendor), re-issue, find the old key, ledger;
+"""`stuntkey panic`: revoke (fake vendor), re-issue, find the old key, ledger;
 never over MCP / serve; the revoke recipe schema; the status reminder."""
 import argparse
 import copy
@@ -9,7 +9,7 @@ import subprocess
 import unittest
 
 import _isolation  # noqa: F401  (fake HOME/USERPROFILE for the whole run)
-from oathkey import broker, httpd, ledger, mcp, panic, recipes
+from stuntkey import broker, httpd, ledger, mcp, panic, recipes
 
 CATALOG = recipes.load_recipes(recipes.RECIPES_DIR)
 OLD = "github_pat_" + "OLDoldOLD1234567890abcdefXYZ"   # built at run time
@@ -194,7 +194,7 @@ class Schema(unittest.TestCase):
 class StatusReminder(unittest.TestCase):
     def test_old_key_hint_mentions_rotate_and_panic(self):
         import datetime
-        from oathkey import projectcmds
+        from stuntkey import projectcmds
         tmp = _isolation.mktemp()
         index = os.path.join(tmp, "i.json")
         then = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
@@ -204,8 +204,8 @@ class StatusReminder(unittest.TestCase):
         rows = projectcmds.status_rows({"services": [{"service": "github"}]}, tmp, CATALOG,
                                        os.path.join(tmp, ".env"), 90, False,
                                        index_path=index, now=then + datetime.timedelta(days=120))
-        self.assertIn("oathkey rotate github", rows[0]["hint"])
-        self.assertIn("oathkey panic github", rows[0]["hint"])
+        self.assertIn("stuntkey rotate github", rows[0]["hint"])
+        self.assertIn("stuntkey panic github", rows[0]["hint"])
 
 
 if __name__ == "__main__":

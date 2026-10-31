@@ -3,7 +3,7 @@ import os
 import re
 import unittest
 
-from oathkey import mcp as mcp_mod
+from stuntkey import mcp as mcp_mod
 
 OLD = "safe" + "easy" + "api"
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -16,7 +16,7 @@ def _read(*parts):
 
 class DocsMatch(unittest.TestCase):
     def test_service_count_is_the_real_one(self):
-        n = len([f for f in os.listdir(os.path.join(REPO, "oathkey", "recipes"))
+        n = len([f for f in os.listdir(os.path.join(REPO, "stuntkey", "recipes"))
                  if f.endswith(".json")])
         self.assertIn(f"{n} services are built in", _read("README.md"))
         guide = _read("docs", "guide.md")
@@ -25,7 +25,7 @@ class DocsMatch(unittest.TestCase):
         self.assertEqual(re.findall(r"\b3[0-9] (?:services|recipes|built in)", guide).count(f"{n} built in"), 1)
 
     def test_skill_explains_call_api(self):
-        skill = _read("oathkey", "skill", "SKILL.md")
+        skill = _read("stuntkey", "skill", "SKILL.md")
         self.assertIn("## Use the key", skill)
         for word in ("call_api", "query_json", "body_json", "ask the person first", "do not retry"):
             self.assertIn(word, skill)
@@ -40,26 +40,26 @@ class DocsMatch(unittest.TestCase):
         self.assertNotIn("returns recipes; the interactive key paste", guide)
 
     def test_one_type_words_table(self):
-        src = _read("oathkey", "mcp.py")
+        src = _read("stuntkey", "mcp.py")
         self.assertEqual(src.count("\n_TYPE_WORDS = "), 1)
         self.assertEqual(mcp_mod._TYPE_WORDS["boolean"], "true or false")
 
     def test_guide_heading_and_commands(self):
         guide = _read("docs", "guide.md")
-        self.assertTrue(guide.lstrip().split("\n\n", 1)[1].startswith("# oathkey\n"))
+        self.assertTrue(guide.lstrip().split("\n\n", 1)[1].startswith("# stuntkey\n"))
         for cmd in ("install", "uninstall", "start", "overview", "doctor", "trust-server"):
-            self.assertRegex(guide, r"(?m)^oathkey [^\n]*\b%s\b" % cmd)
+            self.assertRegex(guide, r"(?m)^stuntkey [^\n]*\b%s\b" % cmd)
 
     def test_readme_front_page(self):
         text = _read("README.md")
-        self.assertIn("Let your AI use your API keys through oathkey without holding them.", text)
+        self.assertIn("Let your AI use your API keys through stuntkey without holding them.", text)
         self.assertIn("Need pipx? https://pipx.pypa.io", text)
         self.assertIn("read-only", text)
         self.assertIn("unless you agree to the fallback", text)
         self.assertIn(OLD, text)        # the migration line
         # the one simple path: install, get a key, plug in, then doctor shows it connected
-        order = [text.index(s) for s in ("pipx install oathkey", "oathkey get github",
-                                          "oathkey install", "oathkey doctor")]
+        order = [text.index(s) for s in ("pipx install stuntkey", "stuntkey get github",
+                                          "stuntkey install", "stuntkey doctor")]
         self.assertEqual(order, sorted(order))
 
     def test_changelog_says_fresh_start(self):

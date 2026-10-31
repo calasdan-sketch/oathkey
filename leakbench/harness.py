@@ -11,7 +11,7 @@ def run(profile_name: str, probes: list[Probe] | None = None) -> list[Result]:
     """Run all probes once under ``profile_name`` in a fresh sandbox.
 
     Raises KeyError for an unknown profile and ImportError when
-    ``oathkey-hook`` is requested but OathKey is not importable.
+    ``stuntkey-hook`` is requested but StuntKey is not importable.
     """
     probe_list = probes if probes is not None else load()
     profile = profiles.get(profile_name)

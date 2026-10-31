@@ -11,8 +11,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest import mock
 
 import _isolation  # noqa: F401  (fake HOME/USERPROFILE for the whole run)
-from oathkey import broker, caps, proxy, recipes
-from oathkey import policy as route
+from stuntkey import broker, caps, proxy, recipes
+from stuntkey import policy as route
 
 KEY = "sk-" + "Q1w2E3r4T5y6U7i8O9p0A1s2D3f4G5h6"     # built at run time
 CATALOG = recipes.load_recipes()
@@ -134,7 +134,7 @@ class Caps(unittest.TestCase):
 
     def test_day_cap_is_shared_across_processes(self):
         self.set_caps(calls_day=5)
-        code = ("import sys; from oathkey import caps, broker\n"
+        code = ("import sys; from stuntkey import caps, broker\n"
                 "ok = 0\n"
                 "for _ in range(4):\n"
                 "    try:\n"
@@ -151,7 +151,7 @@ class Caps(unittest.TestCase):
         caps.cmd_stop(self.home)
         with self.assertRaises(broker.BrokerError) as e:
             call(self.pol)
-        self.assertIn("oathkey stop", str(e.exception))
+        self.assertIn("stuntkey stop", str(e.exception))
         self.assertEqual(caps.cmd_resume(self.home, lambda s: False), 5)  # person says no
         with self.assertRaises(broker.BrokerError):
             call(self.pol)
@@ -298,7 +298,7 @@ class Proxy(unittest.TestCase):
     def test_stop_switch_applies(self):
         caps.cmd_stop(self.home)
         r = self.open("/openai/v1/chat/completions")
-        self.assertIn(b"oathkey stop", r.read())
+        self.assertIn(b"stuntkey stop", r.read())
         self.assertEqual(r.status, 403)
 
     def test_fails_closed_when_the_proxy_dies(self):
@@ -325,7 +325,7 @@ class ChildEnv(unittest.TestCase):
         args = mock.Mock(command=["--", sys.executable, "-c", code, out],
                          env_file=".env", print_env=False)
         with mock.patch.dict(os.environ, {"OPENAI_API_KEY": KEY}), \
-                mock.patch("oathkey.remote.collect_values", lambda r, f: {"OPENAI_API_KEY": KEY}):
+                mock.patch("stuntkey.remote.collect_values", lambda r, f: {"OPENAI_API_KEY": KEY}):
             self.assertEqual(proxy.cmd_proxy(CATALOG, args, _isolation.mktemp()), 0)
         with open(out, encoding="utf-8") as f:
             child = json.load(f)

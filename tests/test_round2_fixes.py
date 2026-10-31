@@ -4,7 +4,7 @@ Fix A: MCP safety screen hardened — name + URL screened, phrase-variant
        patterns, quarantine; unicode homoglyphs documented as residual.
 Fix B: terminal-escape injection stripped from all directory output.
 Fix C: recipe env_var validated as a shell identifier at load time.
-Also: `oathkey --version` works.
+Also: `stuntkey --version` works.
 """
 
 import contextlib
@@ -15,11 +15,11 @@ import unittest
 from unittest import mock
 
 import _isolation  # noqa: F401  (fake HOME/USERPROFILE for the whole run)
-from oathkey import cli as cli_mod
-from oathkey import mcp as mcp_mod
-from oathkey import publicapis as pa_mod
-from oathkey import recipes as recipes_mod
-from oathkey import store as store_mod
+from stuntkey import cli as cli_mod
+from stuntkey import mcp as mcp_mod
+from stuntkey import publicapis as pa_mod
+from stuntkey import recipes as recipes_mod
+from stuntkey import store as store_mod
 
 
 def entry(name="Clean API", description="Real-time weather data.",
@@ -223,7 +223,7 @@ class TestVersionFlag(unittest.TestCase):
             with self.assertRaises(SystemExit) as cm:
                 cli_mod.main(["--version"])
         self.assertEqual(cm.exception.code, 0)
-        self.assertIn("oathkey", out.getvalue())
+        self.assertIn("stuntkey", out.getvalue())
         self.assertIn(cli_mod.__version__, out.getvalue())
 
 

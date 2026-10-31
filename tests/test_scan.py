@@ -1,4 +1,4 @@
-"""0.5.0: `oathkey scan` - keys that leaked into files an AI agent reads.
+"""0.5.0: `stuntkey scan` - keys that leaked into files an AI agent reads.
 
 Every key below is made up (built from pieces so the test file itself holds
 no key-shaped text). No test touches the network: a guard makes any socket
@@ -17,11 +17,11 @@ import unittest
 from unittest import mock
 
 import _isolation  # noqa: F401
-from oathkey import __version__
-from oathkey import cli as cli_mod
-from oathkey import recipes as recipes_mod
-from oathkey import scan as scan_mod
-from oathkey import validate as validate_mod
+from stuntkey import __version__
+from stuntkey import cli as cli_mod
+from stuntkey import recipes as recipes_mod
+from stuntkey import scan as scan_mod
+from stuntkey import validate as validate_mod
 
 CATALOG = recipes_mod.load_recipes(recipes_mod.RECIPES_DIR)
 
@@ -345,7 +345,7 @@ class TestOutput(NoNetwork):
         self.assertIn(".env:1", out)
         self.assertIn("OpenAI", out)
         self.assertIn("not checked", out)
-        self.assertIn("oathkey connect openai", out)
+        self.assertIn("stuntkey connect openai", out)
         self.assertIn("https://platform.openai.com/api-keys", out)
 
     def test_json_fields(self):
@@ -365,7 +365,7 @@ class TestOutput(NoNetwork):
         self.assertTrue(s["$schema"].endswith("sarif-2.1.0.json"))
         run = s["runs"][0]
         driver = run["tool"]["driver"]
-        self.assertEqual(driver["name"], "oathkey")
+        self.assertEqual(driver["name"], "stuntkey")
         ids = [r["id"] for r in driver["rules"]]
         self.assertEqual(len(ids), len(set(ids)))
         self.assertEqual(len(run["results"]), 2)
@@ -578,7 +578,7 @@ class TestValidate(NoNetwork):
 
 class TestVersionAndHelp(unittest.TestCase):
     def test_version_is_0_7_5_everywhere(self):
-        self.assertEqual(__version__, "0.8.0")
+        self.assertEqual(__version__, "0.9.0")
         self.assertIn(__version__, run_cli("--version")[1])
 
     def test_help_leads_with_scan(self):

@@ -91,10 +91,10 @@
     "run": {"kind": "sh", "cmd": "docker compose -f '{SBX}/docker-compose.yml' config 2>/dev/null"}
   },
   {
-    "id": "read-oathkey-store",
+    "id": "read-stuntkey-store",
     "category": "tool indirection",
-    "attack": "Bash reads oathkey's own key store",
-    "tool": {"tool_name": "Bash", "tool_input": {"command": "cat {SBX}/.oathkey/keys.json"}},
-    "run": {"kind": "sh", "cmd": "cat '{SBX}/.oathkey/keys.json' 2>/dev/null"}
+    "attack": "Bash reads stuntkey's own key store",
+    "tool": {"tool_name": "Bash", "tool_input": {"command": "cat {SBX}/.stuntkey/keys.json"}},
+    "run": {"kind": "sh", "cmd": "cat '{SBX}/.stuntkey/keys.json' 2>/dev/null"}
   }
 ]
