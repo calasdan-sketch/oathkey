@@ -495,6 +495,10 @@ def run_all() -> list[dict]:
     return results
 
 
+BETA_NOTICE = ("Beta: not independently security-reviewed yet. "
+               "Use at your own risk; MIT, no warranty.")
+
+
 def cmd_selftest(as_json: bool = False, verbose: bool = False) -> int:
     results = run_all()
     failed = [r for r in results if not r["pass"]]
@@ -503,7 +507,7 @@ def cmd_selftest(as_json: bool = False, verbose: bool = False) -> int:
                           "results": results}))
     else:
         print("\noathkey selftest - attacking itself with a made-up key and a "
-              "pretend server\n(no network, no real key used)\n")
+              "pretend server\n(no network, no real key used)\n" + BETA_NOTICE + "\n")
         groups = []
         for r in results:
             if r["group"] not in groups:

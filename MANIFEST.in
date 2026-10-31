@@ -8,3 +8,4 @@ recursive-include .github *.yml *.md
 include docs/guide.md
 
 include SECURITY.md
+include docs/THREAT_MODEL.md
