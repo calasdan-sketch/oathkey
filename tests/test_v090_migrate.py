@@ -289,5 +289,29 @@ class TheConsentSecretSurvives(unittest.TestCase):
         self.assertIn(consent.LABEL, asked[0])
 
 
+@unittest.skipUnless(os.path.isdir(os.path.join(_isolation.REPO, "shim-oathkey")),
+                     "the shims are not in the sdist")
+class TheOldCommandForwards(unittest.TestCase):
+    def test_oathkey_says_so_and_runs_stuntkey(self):
+        import subprocess
+        import sys
+        code = ("import sys; sys.path.insert(0, 'shim-oathkey'); sys.argv = ['oathkey', '--version']; "
+                "import oathkey; sys.exit(oathkey.main())")
+        r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                           cwd=_isolation.REPO, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("oathkey is now stuntkey", r.stderr)
+        self.assertRegex(r.stdout, r"^stuntkey \d")
+
+    def test_the_safeeasyapi_shim_points_at_stuntkey(self):
+        import sys
+        sys.path.insert(0, os.path.join(_isolation.REPO, "shim"))
+        try:
+            import safeeasyapi
+        finally:
+            sys.path.pop(0)
+        self.assertIn("pipx install stuntkey", safeeasyapi.MESSAGE)
+
+
 if __name__ == "__main__":
     unittest.main()
