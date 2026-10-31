@@ -31,6 +31,16 @@ def _homes() -> list[str]:
     return list(dict.fromkeys((os.path.expanduser("~"), consent.home_dir())))
 
 
+def _unused(new: str) -> bool:
+    """~/.stuntkey is absent, or holds nothing but the .pyz's unpacked code."""
+    try:
+        return set(os.listdir(new)) <= {"pyz"}
+    except FileNotFoundError:
+        return True
+    except OSError:
+        return False
+
+
 def copy_home(home: str | None = None, err=None) -> bool:
     """Copy ~/.oathkey to ~/.stuntkey when only the old one exists. True when
     a copy was made. Copied into a temporary folder first and renamed, so a
@@ -38,7 +48,7 @@ def copy_home(home: str | None = None, err=None) -> bool:
     copied = False
     for base in ([home] if home else _homes()):
         old, new = os.path.join(base, LEGACY_DIR), os.path.join(base, NEW_DIR)
-        if not os.path.isdir(old) or os.path.lexists(new):
+        if not os.path.isdir(old) or not _unused(new):
             continue
         tmp = None
         try:
@@ -48,14 +58,23 @@ def copy_home(home: str | None = None, err=None) -> bool:
             shutil.copytree(old, dest, symlinks=True,
                             ignore=shutil.ignore_patterns("pyz"))
             os.chmod(dest, 0o700)
-            os.rename(dest, new)
+            if not os.path.lexists(new):
+                os.rename(dest, new)
+            else:
+                # the .pyz unpacked itself into ~/.stuntkey/pyz before we ran:
+                # move each part in on its own (each move is still whole)
+                names = os.listdir(dest)
+                if not names:
+                    continue
+                for name in names:
+                    os.rename(os.path.join(dest, name), os.path.join(new, name))
             copied = True
             (err or sys.stderr).write(
                 f"stuntkey: copied your settings from {old} to {new} (oathkey is now "
                 f"stuntkey). The old folder was left as it was. Run `stuntkey doctor` "
                 f"to see what else to move over.\n")
         except OSError as e:
-            if not os.path.lexists(new):
+            if _unused(new):
                 (err or sys.stderr).write(
                     f"stuntkey: could not copy {old} to {new} ({e.strerror or e}); "
                     f"nothing was changed.\n")

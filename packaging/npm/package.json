@@ -11,7 +11,7 @@
     "README.md"
   ],
   "keywords": ["api-keys", "secrets", "mcp", "ai", "cli"],
-  "homepage": "https://github.com/calasdan-sketch/stuntkey",
+  "homepage": "https://calasautomations.com/devtools/stuntkey/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/calasdan-sketch/stuntkey.git"

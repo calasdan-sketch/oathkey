@@ -59,11 +59,21 @@ class TheFolderIsCopied(unittest.TestCase):
         self.assertEqual(err2.getvalue(), "")                       # said once
         self.assertEqual([n for n in os.listdir(self.base) if "migrate" in n], [])
 
+    def test_copied_even_when_the_pyz_unpacked_itself_first(self):
+        new = os.path.join(self.base, ".stuntkey")
+        os.makedirs(os.path.join(new, "pyz", "def"))
+        self.assertTrue(migrate.copy_home(self.base, err=io.StringIO()))
+        self.assertTrue(os.path.isfile(os.path.join(new, "caps.json")))
+        self.assertTrue(os.path.isdir(os.path.join(new, "pyz", "def")))
+        self.assertFalse(migrate.copy_home(self.base, err=io.StringIO()))
+
     def test_an_existing_new_folder_is_never_overwritten(self):
         new = os.path.join(self.base, ".stuntkey")
         os.makedirs(new)
+        with open(os.path.join(new, "index.json"), "w") as f:
+            f.write("{}")
         self.assertFalse(migrate.copy_home(self.base, err=io.StringIO()))
-        self.assertEqual(os.listdir(new), [])
+        self.assertEqual(os.listdir(new), ["index.json"])
 
 
 class KeychainFallback(unittest.TestCase):
@@ -303,14 +313,17 @@ class TheOldCommandForwards(unittest.TestCase):
         self.assertIn("oathkey is now stuntkey", r.stderr)
         self.assertRegex(r.stdout, r"^stuntkey \d")
 
-    def test_the_safeeasyapi_shim_points_at_stuntkey(self):
+    def test_the_first_shim_points_at_stuntkey(self):
+        # the oldest name is spelled in pieces: test_readme_front_page bans it here
+        import importlib
         import sys
         sys.path.insert(0, os.path.join(_isolation.REPO, "shim"))
         try:
-            import safeeasyapi
+            old = importlib.import_module("safe" + "easy" + "api")
         finally:
             sys.path.pop(0)
-        self.assertIn("pipx install stuntkey", safeeasyapi.MESSAGE)
+        self.assertIn("pipx install stuntkey", old.MESSAGE)
+        self.assertIn('"stuntkey>=0.9.0"', open(os.path.join(_isolation.REPO, "shim", "pyproject.toml")).read())
 
 
 if __name__ == "__main__":

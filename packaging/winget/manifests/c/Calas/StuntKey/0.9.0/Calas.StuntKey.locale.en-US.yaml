@@ -7,7 +7,7 @@ Publisher: Calas Automations Inc.
 PublisherUrl: https://github.com/calasdan-sketch
 PublisherSupportUrl: https://github.com/calasdan-sketch/stuntkey/issues
 PackageName: stuntkey
-PackageUrl: https://github.com/calasdan-sketch/stuntkey
+PackageUrl: https://calasautomations.com/devtools/stuntkey/
 License: MIT
 LicenseUrl: https://github.com/calasdan-sketch/stuntkey/blob/main/LICENSE
 ShortDescription: Let your AI use your API keys without ever holding them.

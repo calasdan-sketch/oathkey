@@ -178,7 +178,7 @@ stuntkey` works too). From a checkout: `pip install .`
 
 ### Coming from oathkey 0.8
 
-stuntkey was called OathKey in 0.8 (and SafeEasyAPI before that). Nothing
+stuntkey was called OathKey in 0.8. Nothing
 needs to be done by hand, and nothing old is deleted unless you ask:
 
 - **Your settings folder.** The first run copies `~/.oathkey` to

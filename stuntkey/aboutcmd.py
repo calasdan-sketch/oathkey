@@ -6,7 +6,8 @@ import sys
 
 from . import __version__
 
-HOMEPAGE = "https://github.com/calasdan-sketch/stuntkey"
+HOMEPAGE = "https://calasautomations.com/devtools/stuntkey/"
+SOURCE = "https://github.com/calasdan-sketch/stuntkey"
 PYPI = "https://pypi.org/project/stuntkey/"
 
 
@@ -17,9 +18,10 @@ def text() -> str:
 
   To check this is the real program:
     1. See what is installed:   pip show stuntkey
-       (Author: Calas Automations Inc.; Home-page: the GitHub address below)
+       (Author: Calas Automations Inc.; Home-page: the home page below)
     2. The package page:        {PYPI}
-    3. The source code:         {HOMEPAGE}
+    3. The home page:           {HOMEPAGE}
+    4. The source code:         {SOURCE}
   The permission windows it shows say "stuntkey" in the title. The name of the
   AI program in them (for example Claude Code) is what that program reports about
   itself; stuntkey cannot prove it.
