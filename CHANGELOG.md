@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **New: local recipes.** A recipe with `"local": true` may use plain http, but every
+  address in it must be this computer (127.0.0.1, localhost or [::1]), so the key never
+  leaves the machine. For AI routers on your PC such as freellmapi or OmniRoute: save the
+  key with `oathkey get`, use it with `oathkey run`. `oathkey call` still only reaches
+  public https servers.
+
 ## 0.8.0
 
 oathkey joins two lines of work: the key-capture line (0.7.x: `capture_key`,

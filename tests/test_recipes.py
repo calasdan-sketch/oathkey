@@ -67,3 +67,40 @@ class TestRecipes(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestLocalRecipes(unittest.TestCase):
+    """A "local": true recipe (a router on this PC) may use http, loopback only."""
+
+    def local(self, url="http://127.0.0.1:3101/v1/models", key_url="http://localhost:3101/"):
+        return good_recipe(local=True, key_url=key_url,
+                           validate={"method": "GET", "url": url,
+                                     "auth": {"type": "bearer"}, "expect": [200]})
+
+    def test_loopback_http_accepted(self):
+        for url in ("http://127.0.0.1:3101/v1/models", "http://localhost:20128/v1/models",
+                    "http://[::1]:3101/v1/models", "https://127.0.0.1/x"):
+            recipes_mod.validate_recipe(self.local(url=url))
+
+    def test_non_loopback_refused(self):
+        for url in ("http://192.168.1.5/v1", "http://10.0.0.1/v1", "https://acme.test/me",
+                    "http://127.0.0.1.evil.test/v1", "http://localhost.evil.test/",
+                    "ftp://127.0.0.1/x", "http://user@evil.test/"):
+            with self.assertRaises(recipes_mod.RecipeError, msg=url):
+                recipes_mod.validate_recipe(self.local(url=url))
+
+    def test_key_url_must_be_loopback_too(self):
+        with self.assertRaises(recipes_mod.RecipeError):
+            recipes_mod.validate_recipe(self.local(key_url="http://evil.test/keys"))
+
+    def test_http_still_refused_without_local(self):
+        r = self.local()
+        del r["local"]
+        with self.assertRaises(recipes_mod.RecipeError):
+            recipes_mod.validate_recipe(r)
+
+    def test_local_must_be_boolean(self):
+        r = self.local()
+        r["local"] = "yes"
+        with self.assertRaises(recipes_mod.RecipeError):
+            recipes_mod.validate_recipe(r)
