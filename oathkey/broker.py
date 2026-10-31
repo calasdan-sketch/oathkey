@@ -83,8 +83,12 @@ class Policy:
     """What this session may do. Defaults are the safe ones."""
 
     def __init__(self, allow_write: bool = False, max_calls: int = 100,
-                 max_per_minute: int = 30, approve=None):
+                 max_per_minute: int = 30, approve=None, home: str | None = None,
+                 project_dir: str | None = None):
         self.allow_write = allow_write
+        self.home = home                # None: ~/.oathkey (caps, STOP, policy)
+        self.project_dir = project_dir  # None: the current folder
+        self.service_calls: dict[str, int] = {}
         self.max_calls = max_calls
         self.max_per_minute = max_per_minute
         self.approve = approve          # callable(summary) -> bool, or None
@@ -106,6 +110,23 @@ class Policy:
                                   "and retry.", 5)
             self.calls += 1
             self._stamps.append(now)
+
+    def gate(self, service: str, method: str, path: str) -> None:
+        """Route policy, kill switch and caps: checked before every call."""
+        from . import caps, policy as route
+        home = self.limits_home()
+        route.check(route.load(home, self.project_dir or os.getcwd()),
+                    service, method, path)
+        with self.lock:
+            caps.begin(home, service, self.service_calls.get(service, 0))
+            self.service_calls[service] = self.service_calls.get(service, 0) + 1
+
+    def add_tokens(self, service: str, n: int) -> None:
+        from . import caps
+        caps.add_tokens(self.limits_home(), service, n)
+
+    def limits_home(self) -> str:
+        return self.home or os.path.join(os.path.expanduser("~"), ".oathkey")
 
     def ask(self, summary: str) -> bool:
         """Ask the person, one prompt at a time; after 3 refusals stop asking."""
@@ -197,6 +218,21 @@ def _real_send(req: urllib.request.Request, ip: str, timeout: float):
         body = resp.read(MAX_BODY_OUT + 1)
         headers = {k.lower(): v for k, v in resp.headers.items()}
         return getattr(resp, "status", None) or resp.code, headers, body
+
+
+def open_stream(host: str, ip: str, method: str, target: str, headers: dict,
+                body, timeout: float, connect=None):
+    """Send one request over the pinned connection and hand back the open
+    response, so a caller can stream it (the proxy). http.client never
+    follows redirects and ignores HTTP(S)_PROXY. `connect(host, timeout=)`
+    is for tests only."""
+    conn = (connect or functools.partial(_Pinned, ip=ip))(host, timeout=timeout)
+    try:
+        conn.request(method, target, body=body, headers=headers)
+        return conn, conn.getresponse()
+    except (OSError, http.client.HTTPException):
+        conn.close()
+        raise BrokerError("network error talking to the API", 7) from None
 
 
 # ---- the call ------------------------------------------------------------------
@@ -307,6 +343,7 @@ def call(recipe: dict, values: dict, method: str, path: str,
     policy.count()          # every attempt counts, refused ones included
     try:
         host, url = build_url(recipe, path, query)
+        policy.gate(recipe["service"], method, path)
     except BrokerError:
         _log(audit, recipe, method, "?", _clean(path), 0, 0, "refused")
         raise
@@ -396,6 +433,8 @@ def call(recipe: dict, values: dict, method: str, path: str,
         _log(audit, recipe, method, host, path, 0, 0, "network-error")
         raise
 
+    from .caps import tokens_in
+    policy.add_tokens(recipe["service"], tokens_in(headers.get("content-type", ""), raw))
     secrets = [v for v in values.values() if isinstance(v, str)]
     if token:
         secrets.append(token)           # the OAuth token we minted is a secret too

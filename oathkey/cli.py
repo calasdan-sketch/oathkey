@@ -309,6 +309,8 @@ def _build_parser() -> argparse.ArgumentParser:
     f.add_argument("--refresh", action="store_true",
                    help="Re-download the directory (cached 7 days).")
     extras.add_parsers(sub)
+    from . import proxy as proxy_mod
+    proxy_mod.add_parsers(sub)
     return p
 
 
@@ -823,6 +825,10 @@ def _main(argv: list[str] | None = None) -> int:
         from . import aboutcmd
         return aboutcmd.cmd_about()
     handled = extras.dispatch(args, catalog)
+    if handled is not None:
+        return handled
+    from . import proxy as proxy_mod
+    handled = proxy_mod.dispatch(args, catalog)
     if handled is not None:
         return handled
     if args.cmd == "list":

@@ -16,6 +16,7 @@ import json
 import os
 import secrets
 import tempfile
+import threading
 import unicodedata
 import urllib.parse
 
@@ -57,8 +58,15 @@ def _fake_server(body_fn, headers=None):
     return send
 
 
+_HOME = None     # a throw-away ~/.oathkey: the person's STOP file or caps never apply
+
+
+def _pol(**kw):
+    return broker.Policy(home=_HOME, project_dir=_HOME, **kw)
+
+
 def _approve_all():
-    return broker.Policy(approve=lambda s: True)
+    return _pol(approve=lambda s: True)
 
 
 def _call(key, send, path="/user", method="GET", policy=None, audit=None,
@@ -204,7 +212,7 @@ def _override_query(key):
 
 def _write_denied(key):
     send = _fake_server(lambda req: b"{}")
-    pol = broker.Policy(approve=lambda s: False)
+    pol = _pol(approve=lambda s: False)
     ok, d = _refused(lambda: _call(key, send, method="POST", path="/x", policy=pol,
                                    body={"a": 1}), "did not approve")
     return ok and not send.seen, d
@@ -213,13 +221,13 @@ def _write_denied(key):
 def _write_no_prompt(key):
     send = _fake_server(lambda req: b"{}")
     ok, d = _refused(lambda: _call(key, send, method="DELETE", path="/x",
-                                   policy=broker.Policy(approve=None)), "did not approve")
+                                   policy=_pol(approve=None)), "did not approve")
     return ok and not send.seen, d
 
 
 def _three_noes(key):
     send = _fake_server(lambda req: b"{}")
-    pol = broker.Policy(approve=lambda s: False)
+    pol = _pol(approve=lambda s: False)
     for _ in range(3):
         _refused(lambda: _call(key, send, method="POST", path="/x", policy=pol, body={}),
                  "did not approve")
@@ -230,7 +238,7 @@ def _three_noes(key):
 
 def _prompt_shows_everything(key):
     seen = []
-    pol = broker.Policy(approve=lambda s: (seen.append(s), True)[1])
+    pol = _pol(approve=lambda s: (seen.append(s), True)[1])
     send = _fake_server(lambda req: b"{}")
     q = {f"p{i}": "v" for i in range(14)}
     _call(key, send, method="POST", path="/x", policy=pol, query=q, body={"danger": "yes"})
@@ -241,7 +249,7 @@ def _prompt_shows_everything(key):
 
 def _prompt_cannot_be_padded(key):
     send = _fake_server(lambda req: b"{}")
-    pol = broker.Policy(approve=lambda s: True)
+    pol = _pol(approve=lambda s: True)
     q = {("junk" + "x" * 40 + str(i)): "y" * 60 for i in range(12)}
     ok, d = _refused(lambda: _call(key, send, method="POST", path="/x", policy=pol,
                                    query=q, body={"a": 1}), "too long")
@@ -250,7 +258,7 @@ def _prompt_cannot_be_padded(key):
 
 def _query_value_not_cut(key):
     send = _fake_server(lambda req: b"{}")
-    pol = broker.Policy(approve=lambda s: True)
+    pol = _pol(approve=lambda s: True)
     ok, d = _refused(lambda: _call(key, send, method="POST", path="/x", policy=pol,
                                    query={"note": "a" * 300}), "too long")
     return ok and not send.seen, d
@@ -258,7 +266,7 @@ def _query_value_not_cut(key):
 
 def _body_tail_not_cut(key):
     send = _fake_server(lambda req: b"{}")
-    pol = broker.Policy(approve=lambda s: True)
+    pol = _pol(approve=lambda s: True)
     body = {"note": "harmless words " * 3 + "x" * 600 + " and a hostile tail"}
     ok, d = _refused(lambda: _call(key, send, method="POST", path="/x", policy=pol,
                                    body=body), "too long")
@@ -267,7 +275,7 @@ def _body_tail_not_cut(key):
 
 def _refusals_use_the_limit(key):
     send = _fake_server(lambda req: b"{}")
-    pol = broker.Policy(approve=lambda s: True, max_calls=3)
+    pol = _pol(approve=lambda s: True, max_calls=3)
     for _ in range(3):
         _refused(lambda: _call(key, send, path="/a/../b", policy=pol), ". or ..")
     ok, d = _refused(lambda: _call(key, send, policy=pol), "limit of 3")
@@ -282,7 +290,7 @@ def _read_with_body(key):
 
 def _flood(key):
     send = _fake_server(lambda req: b"{}")
-    pol = broker.Policy(approve=lambda s: True, max_calls=3)
+    pol = _pol(approve=lambda s: True, max_calls=3)
     for _ in range(3):
         _call(key, send, policy=pol)
     ok, d = _refused(lambda: _call(key, send, policy=pol), "limit of 3")
@@ -451,6 +459,76 @@ def _helpers():
             ("Copy-and-go does not take a web address as a key", url_not_a_key)]
 
 
+def _proxy_attacks():
+    """The base-URL proxy, on 127.0.0.1 with a pretend upstream (no network)."""
+    import http.client
+    import io
+    from . import proxy
+
+    class Resp(io.BytesIO):
+        status = 200
+
+        def getheader(self, name, default=None):
+            return {"content-type": "text/event-stream"}.get(name.lower(), default)
+
+        def getheaders(self):
+            return [("Content-Type", "text/event-stream")]
+
+    def run(key, path="/selftest/v1/chat/completions", auth=None, headers=None):
+        seen = []
+
+        class Conn:
+            def __init__(self, host, timeout=None):
+                pass
+
+            def request(self, method, target, body=None, headers=None):
+                seen.append((method, target, dict(headers or {})))
+
+            def getresponse(self):
+                return Resp(("data: " + json.dumps({"echo": key}) + "\n\n").encode())
+
+            def close(self):
+                pass
+        tok = "ok-" + secrets.token_urlsafe(16)
+        recipe = _recipe()
+        srv = proxy.make_proxy({"selftest": recipe}, lambda r: {"SELFTEST_KEY": key},
+                               tok, _pol(max_calls=50), resolver=_resolver(PUBLIC_IP),
+                               connect=Conn)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            c = http.client.HTTPConnection("127.0.0.1", srv.server_address[1], timeout=10)
+            h = {"Authorization": f"Bearer {auth or tok}", "Content-Type": "application/json"}
+            h.update(headers or {})
+            c.request("POST", path, body=b"{}", headers=h)
+            r = c.getresponse()
+            return r.status, r.read().decode("utf-8", "replace"), seen
+        finally:
+            srv.shutdown()
+            srv.server_close()
+
+    def wrong_token(key):
+        status, _b, seen = run(key, auth="ok-guess")
+        return status == 401 and not seen, "a wrong proxy key is refused"
+
+    def odd_write(key):
+        status, _b, seen = run(key, path="/selftest/v1/files")
+        return status == 403 and not seen, "a write to a non-LLM endpoint is refused"
+
+    def echo_hidden(key):
+        status, body, _s = run(key)
+        return status == 200 and not _visible(key, body), "a key echoed in a stream is hidden"
+
+    def client_auth_dropped(key):
+        _st, _b, seen = run(key, headers={"Cookie": "c=1", "X-Api-Key": "mine"})
+        sent = {k.lower(): v for k, v in (seen[0][2] if seen else {}).items()}
+        return (bool(seen) and sent.get("authorization") == f"Bearer {key}"
+                and "cookie" not in sent and "x-api-key" not in sent),             "the program's own credential headers are not passed on"
+    return [("A wrong proxy key is refused", wrong_token),
+            ("A write to a non-LLM endpoint through the proxy is refused", odd_write),
+            ("A key echoed in a streamed answer is hidden", echo_hidden),
+            ("The program's own credential headers are not passed on", client_auth_dropped)]
+
+
 def _sections():
     return [
         ("Key leaks", _leak_attacks() + [
@@ -473,6 +551,7 @@ def _sections():
         ("AWS key-minting", _aws_cases()),
         ("Activity log", _log_tests()),
         ("Helper programs", _helpers()),
+        ("Base-URL proxy", _proxy_attacks()),
     ]
 
 
@@ -481,6 +560,16 @@ def attacks():
 
 
 def run_all() -> list[dict]:
+    global _HOME
+    with tempfile.TemporaryDirectory(prefix="oksel") as home:
+        _HOME = home
+        try:
+            return _run_all()
+        finally:
+            _HOME = None
+
+
+def _run_all() -> list[dict]:
     # a made-up key with awkward characters, used nowhere else
     key = "sk_selftest_" + secrets.token_hex(12) + "+/=&%"
     results = []

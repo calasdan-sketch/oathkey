@@ -66,6 +66,13 @@ def load_or_make_token(path: str) -> str:
     return tok
 
 
+def local_only(headers, port: int) -> bool:
+    """Host must be exactly us (no DNS rebinding) and no web page (Origin)."""
+    host = (headers.get("Host") or "").lower()
+    return (host in (f"127.0.0.1:{port}", f"localhost:{port}")
+            and headers.get("Origin") is None)
+
+
 class DoorServer(ThreadingHTTPServer):
     """On Windows, SO_REUSEADDR lets another program bind the very same port
     and take the door's connections; ask for the port exclusively instead."""
@@ -100,12 +107,7 @@ def make_server(catalog: dict, get_values, token: str, policy, audit=None,
             self.wfile.write(data)
 
         def _guard(self) -> bool:
-            host = (self.headers.get("Host") or "").lower()
-            port = self.server.server_address[1]
-            if host not in (f"127.0.0.1:{port}", f"localhost:{port}"):
-                self._send(403, {"error": "forbidden"})
-                return False
-            if self.headers.get("Origin") is not None:
+            if not local_only(self.headers, self.server.server_address[1]):
                 self._send(403, {"error": "forbidden"})
                 return False
             given = (self.headers.get("Authorization") or "")
