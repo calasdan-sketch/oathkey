@@ -449,6 +449,71 @@ def decide_protected_write(payload) -> str | None:
     return None
 
 
+# Read's output has no documented shape for PostToolUse updatedToolOutput, so
+# a Read cannot be masked after it runs: the secret-by-nature files are refused
+# before it. A .pem/.key file counts only when it holds a private key (a
+# certificate is public). Any other Read is refused only when the file holds
+# one of YOUR stored keys (by fingerprint: no false alarms on key-like text),
+# and an MCP config also when a key in a known format is written in it.
+_CRED_PATH_RE = re.compile(r"(?:^|[/\\])" + _CRED_FILE, re.I)
+_MCP_CONFIG_RE = re.compile(r"(?:^|[/\\])\.(?:mcp|claude)\.json\Z", re.I)
+
+
+def _file_head(path: str) -> str | None:
+    """The first SCAN_BUDGET characters of a file, or None if unreadable."""
+    try:
+        with open(os.path.expanduser(path), encoding="utf-8", errors="replace") as f:
+            return f.read(SCAN_BUDGET)
+    except (OSError, ValueError):
+        return None
+
+
+def decide_secret_read(payload) -> str | None:
+    """What a Read (or a Grep on one file) would show that must stay out of
+    the chat, or None."""
+    if not isinstance(payload, dict) or payload.get("tool_name") not in ("Read", "Grep"):
+        return None
+    args = payload.get("tool_input")
+    key = "file_path" if payload.get("tool_name") == "Read" else "path"
+    path = args.get(key) if isinstance(args, dict) else None
+    if not isinstance(path, str) or not path.strip():
+        return None
+    path = path.strip()
+    text = _file_head(path)
+    if _CRED_PATH_RE.search(path):
+        from .scan import PRIVATE_KEY_RE
+        if not (re.search(r"\.(?:pem|key)\Z", path, re.I)
+                and text is not None and not PRIVATE_KEY_RE.search(text)):
+            return "show a private key or a credentials file"
+    if payload.get("tool_name") != "Read" or text is None:
+        return None
+    from . import scrub as scrub_mod
+    try:
+        prints = scrub_mod.load_fingerprints()
+    except (OSError, ValueError):
+        prints = (b"", frozenset())
+    if scrub_mod.has_stored_key(text, prints):
+        return "show a file that holds one of your stored keys"
+    if _MCP_CONFIG_RE.search(path) and scrub_mod.mask_secrets(text, (b"", frozenset()))[1]:
+        return "show an MCP config with a key written in it"
+    return None
+
+
+def decide_mcp_key(payload) -> str | None:
+    """An MCP tool call whose arguments carry one of your stored keys."""
+    tool = payload.get("tool_name") if isinstance(payload, dict) else None
+    if not (isinstance(tool, str) and tool.startswith("mcp__")):
+        return None
+    from . import scrub as scrub_mod
+    try:
+        prints = scrub_mod.load_fingerprints()
+    except (OSError, ValueError):
+        return None
+    if any(scrub_mod.has_stored_key(s, prints) for s in touched_text(payload)):
+        return "send one of your stored keys to an MCP tool"
+    return None
+
+
 def writes_allowed(environ=None) -> bool:
     return (environ if environ is not None else os.environ).get(ALLOW_WRITE_VAR, "").strip() == "1"
 
@@ -516,7 +581,7 @@ def check(stdin_text: str) -> tuple[int, str]:
             what = recipes_mod.printable(target)
             return 0, json.dumps(decision_json(
                 PROTECTED_REASON.format(what=f"'{what}'"))) + "\n"
-        what = decide_steal(payload)
+        what = decide_steal(payload) or decide_secret_read(payload) or decide_mcp_key(payload)
         if what:
             return 0, json.dumps(decision_json(STEAL_REASON.format(what=what))) + "\n"
         return 0, ""

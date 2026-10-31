@@ -319,6 +319,12 @@ def _stored_spans(text: str, salt: bytes, prints: frozenset):
                 yield base + a, base + a + len(piece)
 
 
+def has_stored_key(text: str, prints: tuple[bytes, frozenset]) -> bool:
+    """Does `text` hold a stored key (by fingerprint only, never by format)?"""
+    salt, hashes = prints
+    return bool(hashes) and next(_stored_spans(text, salt, hashes), None) is not None
+
+
 _RULES = None
 
 
