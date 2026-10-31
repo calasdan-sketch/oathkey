@@ -126,6 +126,18 @@ STEAL_REASON = (
 # Ways a shell can pull a stored key out, or print it unredacted. Each is
 # (regex, what it does). They are matched against the whole command text.
 _SAFE = r"(?:^|[\s;&|`(\"'])"
+# the start of a command (not a word in the middle of one), and its end
+_CMD = (r"(?:^|[\n;&|(`{]|\bthen\b|\bdo\b|\bcmd(?:\.exe)?\s+/[ck]|\s-c)\s*(?:[\"']\s*)?"
+        r"(?:sudo\s+|command\s+|builtin\s+)?")
+_END = r"(?=$|\s*[\n|;&>)`}\"'])"
+# upper case only: `for key in ...; do echo $key` is not a key
+_SECRET_WORD = r"(?-i:KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL)"
+# private keys and the credentials files tools keep in your home folder
+_CRED_FILE = (r"(?:[\w.\-]*\.(?:pem|key|p12|pfx|jks|keystore)|id_(?:rsa|dsa|ecdsa|ed25519)|"
+              r"\.netrc|_netrc|\.git-credentials|\.npmrc|\.pypirc|\.pgpass|"
+              r"\.aws[/\\](?:credentials|config)|\.docker[/\\]config\.json|"
+              r"\.kube[/\\]config|credentials\.json|application_default_credentials\.json|"
+              r"service[-_]account[\w.\-]*\.json)(?=$|[\s\"'`;&|)>*])")
 STEAL_RULES = (
     (re.compile(r"oathkey\b(?:(?!\s--\s)[^\n;&|]){0,300}\s--no-r\w*", re.I),
      "run a command with the key and turn output hiding off"),
@@ -150,6 +162,42 @@ STEAL_RULES = (
      "read the clipboard"),
     (re.compile(r"\b(?:Windows\.Forms\.Clipboard|GetClipboardData|pyperclip|clipboard_get)\b", re.I),
      "read the clipboard from code"),
+)
+
+# Shell commands (Bash, PowerShell, Monitor only: an MCP tool's text is not a
+# command) that print the whole environment, where `oathkey run` and many dev
+# setups put keys, or show a private key / credentials file. `env FOO=1 cmd`,
+# `set -e`, `export X=1`, `python -m venv env` and `printenv PATH` stay allowed:
+# only the dumping forms count.
+DUMP_RULES = (
+    (re.compile(_CMD + r"(?:(?:env|printenv)(?:\s+-[0-9A-Za-z]+)*|set|export(?:\s+-p)?|"
+                r"(?:declare|typeset)\s+-[a-z]*[px][a-z]*)\s*" + _END, re.I),
+     "print every environment variable (that is where keys live)"),
+    (re.compile(r"\b(?:exec|ssh|run)\b[^\n;&|]{0,300}\s(?:env|printenv)\s*" + _END, re.I),
+     "print every environment variable of a container or remote machine"),
+    (re.compile(r"\bprintenv\s+\w*" + _SECRET_WORD + r"\w*|"
+                r"(?:^|[\s;&|(`])(?:echo|printf|Write-Output|Write-Host)\b[^\n;&|]{0,300}"
+                r"\$(?:\{|env:)?\w*" + _SECRET_WORD + r"|"
+                r"(?:^|[\s;&|(`(])\$env:\w*" + _SECRET_WORD + r"\w*\s*" + _END, re.I),
+     "print a key from an environment variable"),
+    (re.compile(r"\b(?:Get-ChildItem|gci|ls|dir|Get-Item|gi|Get-Content|gc|cat|type)\s+"
+                r"(?:-\w+\s+)*Env::?(?:(?!\w)|\w*\*|\w*" + _SECRET_WORD + r")|"
+                r"GetEnvironmentVariables\b", re.I),
+     "list the environment variables (that is where keys live)"),
+    (re.compile(r"\bdocker(?:-compose|\s+compose)\b[^\n;&|]{0,300}\sconfig\b", re.I),
+     "print the compose file with every variable filled in (keys included)"),
+    (re.compile(r"\bdocker\s+(?:container\s+|image\s+)?inspect\b(?![^\n;&|]{0,300}\s(?:--format|-f)\b)|"
+                r"\bdocker\s+(?:container\s+|image\s+)?inspect\b[^\n;&|]{0,300}"
+                r"(?:\bEnv\b|\.Config\s*\}\}|\{\{\s*json\s+\.\s*\}\})", re.I),
+     "print a container's settings, its environment (keys) among them"),
+    (re.compile(r"\bprint\s*\(\s*(?:dict\s*\(\s*)?os\.environ\b(?!\s*[\[.])|"
+                r"\bconsole\.(?:log|dir)\s*\(\s*process\.env\s*\)|"
+                r"\bjson\.dumps\s*\(\s*(?:dict\s*\(\s*)?os\.environ\b", re.I),
+     "print every environment variable from code"),
+    (re.compile(_CMD + r"(?:sudo\s+)?(?:cat|type|Get-Content|gc|less|more|head|tail|grep|egrep|"
+                r"fgrep|rg|ag|sed|awk|bat|nl|xxd|od|strings|base64|tac|cut|sort|uniq|"
+                r"Select-String|sls)\b[^\n;&|]{0,300}?" + _CRED_FILE, re.I),
+     "show a private key or a credentials file"),
 )
 
 
@@ -220,15 +268,16 @@ def globs_to_our_folder(text: str) -> bool:
     return False
 
 
-def steals_key(text: str) -> str | None:
+def steals_key(text: str, shell: bool = False) -> str | None:
     """What a shell command / path would do to a stored key, or None. A speed
     bump, not a lock: it reads the text of the call, and a program that builds
-    its command at run time gets past it."""
+    its command at run time gets past it. `shell`: the text is a shell
+    command, so DUMP_RULES apply too."""
     flat = text.replace("\\", "/") if "oathkey" in text else text
     variants = (text, flat, *_squash(text))
     if any(globs_to_our_folder(v) for v in variants):
         return "touch oathkey's own store (a wildcard that matches its folder)"
-    for rx, what in STEAL_RULES:
+    for rx, what in STEAL_RULES + (DUMP_RULES if shell else ()):
         if any(rx.search(v) for v in variants):
             return what
     for variant in variants:
@@ -370,9 +419,10 @@ def decide_steal(payload) -> str | None:
     if not isinstance(payload, dict):
         return None
     budget = [SCAN_BUDGET]
+    shell = payload.get("tool_name") in SHELL_TOOLS
     for text in touched_text(payload):
         for piece in _pieces(text, budget):
-            what = steals_key(piece)
+            what = steals_key(piece, shell)
             if what:
                 return what
     return None
@@ -453,6 +503,8 @@ def check(stdin_text: str) -> tuple[int, str]:
             if what:
                 return 0, json.dumps(decision_json(STEAL_REASON.format(what=what))) + "\n"
         return 1, ""
+    if isinstance(payload, dict) and payload.get("hook_event_name") == "PostToolUse":
+        return 0, post_check(payload)
     size = too_long(payload)
     if size is not None:
         return 0, json.dumps(decision_json(
@@ -474,6 +526,54 @@ def check(stdin_text: str) -> tuple[int, str]:
     else:
         reason = REASON.format(what=f"'{what}'")
     return 0, json.dumps(decision_json(reason)) + "\n"
+
+
+# ------------------------------------------------- PostToolUse: mask the output
+#
+# Claude Code runs the same `hook check` after a tool call (PostToolUse) with
+# the call's result in tool_response. The answer `hookSpecificOutput.
+# updatedToolOutput` replaces what the model sees; it must have the tool's
+# own output shape or Claude Code ignores it and uses the original. Only Bash
+# has a documented shape ({stdout, stderr, interrupted, isImage}); Read, Grep
+# and every other tool are left alone (https://code.claude.com/docs/en/hooks).
+# Fail-OPEN by Claude Code's design: a PostToolUse hook that breaks or times
+# out cannot hold the output back, so an error here means the model sees the
+# original output.
+
+POST_MATCHER = "Bash"
+POST_FIELDS = ("stdout", "stderr")
+POST_NOTE = ("oathkey hid {n} secret value(s) in this output as [REDACTED]. "
+             "Do not try to recover them; if a command needs a key, ask the "
+             "person to run `oathkey run <service> -- <command>`.")
+
+
+def post_check(payload: dict, err=None) -> str:
+    """The PostToolUse answer for one tool call: "" (show the output as it
+    is) or the JSON that replaces it with the secrets masked."""
+    try:
+        if payload.get("tool_name") != POST_MATCHER:
+            return ""
+        resp = payload.get("tool_response")
+        if not isinstance(resp, dict):
+            return ""
+        from . import scrub as scrub_mod
+        prints = scrub_mod.load_fingerprints()
+        new, total = dict(resp), 0
+        for field in POST_FIELDS:
+            value = resp.get(field)
+            if isinstance(value, str) and value:
+                new[field], n = scrub_mod.mask_secrets(value, prints)
+                total += n
+        if not total:
+            return ""
+        return json.dumps({"hookSpecificOutput": {
+            "hookEventName": "PostToolUse",
+            "updatedToolOutput": new,
+            "additionalContext": POST_NOTE.format(n=total)}}) + "\n"
+    except Exception as e:                      # fail open, but say so
+        (err or sys.stderr).write(f"oathkey hook: could not check the output "
+                                  f"({type(e).__name__}); it is shown unmasked.\n")
+        return ""
 
 
 def cmd_check(stdin=None, out=None, err=None) -> int:
@@ -592,6 +692,13 @@ def hook_entry(handler: dict | None = None) -> dict:
     return {"matcher": MATCHER, "hooks": [handler or hook_handler()]}
 
 
+def post_entry(handler: dict) -> dict:
+    """Our group in hooks -> PostToolUse: the same program, without
+    onFailure (a PostToolUse hook cannot hold output back anyway)."""
+    handler = {k: v for k, v in handler.items() if k != "onFailure"}
+    return {"matcher": POST_MATCHER, "hooks": [handler]}
+
+
 def _unquote(token: str) -> str:
     if len(token) >= 2 and token[0] == token[-1] and token[0] in "\"'":
         return token[1:-1]
@@ -651,7 +758,7 @@ def load_settings(path: str) -> dict:
     return data
 
 
-def _pretool_list(data: dict, create: bool) -> list | None:
+def _pretool_list(data: dict, create: bool, event: str = "PreToolUse") -> list | None:
     hooks = data.get("hooks")
     if hooks is None:
         if not create:
@@ -660,13 +767,13 @@ def _pretool_list(data: dict, create: bool) -> list | None:
     if not isinstance(hooks, dict):
         raise SettingsError("the \"hooks\" part of the settings is not an "
                             "object, so I left the file alone.")
-    groups = hooks.get("PreToolUse")
+    groups = hooks.get(event)
     if groups is None:
         if not create:
             return None
-        groups = hooks["PreToolUse"] = []
+        groups = hooks[event] = []
     if not isinstance(groups, list):
-        raise SettingsError("\"hooks.PreToolUse\" in the settings is not a "
+        raise SettingsError(f"\"hooks.{event}\" in the settings is not a "
                             "list, so I left the file alone.")
     return groups
 
@@ -696,8 +803,17 @@ def merge_install(data: dict, handler: dict | str) -> str:
     "updated" or "unchanged"."""
     if isinstance(handler, str):                    # a bare command string
         handler = dict(hook_handler(shell_form=True), command=handler)
-    groups = _pretool_list(data, create=True)
-    desired = hook_entry(handler)
+    _pretool_list(data, create=False)               # check both shapes first
+    _pretool_list(data, create=False, event="PostToolUse")
+    pre = _merge_group(_pretool_list(data, create=True), hook_entry(handler))
+    post = _merge_group(_pretool_list(data, create=True, event="PostToolUse"),
+                        post_entry(handler))
+    if pre == "added":
+        return "added"
+    return "unchanged" if pre == post == "unchanged" else "updated"
+
+
+def _merge_group(groups: list, desired: dict) -> str:
     changed = False
     for group in list(groups):                      # our handler in a shared group
         inner = _inner(group)
@@ -721,7 +837,11 @@ def merge_install(data: dict, handler: dict | str) -> str:
 def merge_uninstall(data: dict) -> int:
     """Remove only our handlers (and groups left empty by that). Returns how
     many handlers were removed."""
-    groups = _pretool_list(data, create=False)
+    return sum(_uninstall_event(data, event) for event in ("PreToolUse", "PostToolUse"))
+
+
+def _uninstall_event(data: dict, event: str) -> int:
+    groups = _pretool_list(data, create=False, event=event)
     if not groups:
         return 0
     removed = 0
@@ -737,7 +857,7 @@ def merge_uninstall(data: dict) -> int:
             else:
                 groups.remove(group)
     if removed and not groups:
-        del data["hooks"]["PreToolUse"]
+        del data["hooks"][event]
         if not data["hooks"]:
             del data["hooks"]
     return removed
@@ -862,7 +982,11 @@ def cmd_hook(args, out=None, err=None, run=subprocess.run) -> int:
             out.write("  From now on Claude Code asks it before every Read, Grep, Bash, "
                       "PowerShell, Monitor, Edit, Write, MultiEdit, NotebookEdit and MCP "
                       "tool call, and it refuses .env files, oathkey's own store and "
-                      "commands that would use a stored key.\n")
+                      "commands that would use a stored key or print the environment.\n"
+                      "  After a Bash command it also hides stored keys, and text in a "
+                      "known key format, in the output before Claude sees it (best effort; "
+                      "if that check fails, the output is shown as it is).\n")
+            out.write(_offer_agent_rules(args, out))
             if handler.get("onFailure") == "block":
                 out.write("  If the hook itself breaks or times out, the call is blocked "
                           "(fail closed). Use --fail-open to let calls through instead.\n")
@@ -878,6 +1002,8 @@ def cmd_hook(args, out=None, err=None, run=subprocess.run) -> int:
                 return 1
             return 0
         removed = merge_uninstall(data)
+        if getattr(args, "project", False) and remove_agent_rules(os.getcwd()):
+            out.write("  Took oathkey's block out of this project's agent rules files.\n")
         if removed:
             backup = save_settings(path, data, had_file)
             out.write(f"  Removed the oathkey hook from {shown}. "
@@ -892,6 +1018,109 @@ def cmd_hook(args, out=None, err=None, run=subprocess.run) -> int:
     except OSError as e:
         err.write(f"error: could not change {shown}: {e.strerror or e}\n")
         return 2
+
+
+# ------------------------------------------------ the agent rules files (0.9.x)
+
+RULES_FILES = ("CLAUDE.md", "AGENTS.md", ".cursorrules")
+RULES_BEGIN = ("<!-- oathkey:begin (added by `oathkey hook install --project`; "
+               "`oathkey hook uninstall --project` removes it) -->")
+RULES_END = "<!-- oathkey:end -->"
+RULES_TEXT = (
+    "## API keys (oathkey)\n"
+    "- Use oathkey for API keys: the `capture_key` / `needs_keys` tools, or ask the "
+    "person to run `oathkey connect <service>`.\n"
+    "- Never read .env files (read .env.example for the variable names).\n"
+    "- Never print, echo or hard-code a key.\n"
+    "- A command that needs a key: ask the person to run "
+    "`oathkey run <service> -- <cmd>`.\n")
+_RULES_BLOCK_RE = re.compile(r"\n*<!-- oathkey:begin[^\n]*\n.*?" + re.escape(RULES_END) + r"\n?",
+                             re.S)
+
+
+def _rules_targets(folder: str) -> list[str]:
+    """The rules files the project has; CLAUDE.md when it has none."""
+    found = [os.path.join(folder, n) for n in RULES_FILES
+             if os.path.isfile(os.path.join(folder, n))]
+    return found or [os.path.join(folder, RULES_FILES[0])]
+
+
+def _read_text(path: str) -> str | None:
+    try:
+        with open(path, encoding="utf-8", newline="") as f:
+            return f.read()
+    except FileNotFoundError:
+        return None
+
+
+def _write_text(path: str, text: str) -> None:
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
+
+
+def add_agent_rules(folder: str) -> list[str]:
+    """Add oathkey's short block to the project's agent rules files (the
+    ones it has, else a new CLAUDE.md). A file that already has the block is
+    left alone. Returns the files changed."""
+    changed = []
+    for path in _rules_targets(folder):
+        old = _read_text(path) or ""
+        if RULES_END in old:
+            continue
+        nl = "\r\n" if "\r\n" in old else "\n"
+        block = (RULES_BEGIN + "\n" + RULES_TEXT + RULES_END + "\n").replace("\n", nl)
+        sep = "" if not old else (nl if old.endswith(nl) else nl + nl)
+        _write_text(path, old + sep + block)
+        changed.append(path)
+    return changed
+
+
+def remove_agent_rules(folder: str) -> list[str]:
+    """The undo: take our block (only ours) out again; a file left empty by
+    that is removed. Returns the files changed."""
+    changed = []
+    for name in RULES_FILES:
+        path = os.path.join(folder, name)
+        old = _read_text(path)
+        if old is None or RULES_END not in old:
+            continue
+        nl = "\r\n" if "\r\n" in old else "\n"
+        new = _RULES_BLOCK_RE.sub("\n", old.replace("\r\n", "\n")).strip("\n")
+        if new.strip():
+            _write_text(path, (new + "\n").replace("\n", nl))
+        else:
+            os.unlink(path)
+        changed.append(path)
+    return changed
+
+
+def _offer_agent_rules(args, out, ask=None) -> str:
+    """Only with --project: on a yes at the prompt (asked only on a
+    terminal), add the rules block. `args.agent_rules` True / False, when a
+    caller sets it, answers for the person. Returns what to print."""
+    choice = getattr(args, "agent_rules", None)
+    if not getattr(args, "project", False) or choice is False:
+        return ""
+    names = ", ".join(os.path.basename(p) for p in _rules_targets(os.getcwd()))
+    if not choice:
+        if ask is None:
+            if not sys.stdin or not sys.stdin.isatty():
+                return (f"  Tip: run `oathkey hook install --project` in a terminal to add a "
+                        f"short \"use oathkey for keys\" block to {names}.\n")
+            ask = input
+        out.write(f"  Add a short \"use oathkey for keys, never read .env\" block "
+                  f"to {names}? [y/N] ")
+        out.flush()
+        try:
+            if ask("").strip().lower() not in ("y", "yes"):
+                return ""
+        except EOFError:
+            return ""
+    done = add_agent_rules(os.getcwd())
+    if not done:
+        return f"  {names}: oathkey's block is already there.\n"
+    return (f"  Added oathkey's block to {', '.join(os.path.basename(p) for p in done)}. "
+            f"`oathkey hook uninstall --project` takes it out again.\n")
 
 
 def _describe(handler: dict) -> str:
@@ -923,6 +1152,9 @@ def _status(args, out, run) -> int:
         if tested is None:
             tested = self_test(expected, run)
         notes = []
+        if not list(_our_handlers(_pretool_list(data, create=False, event="PostToolUse") or [])):
+            notes.append("it does not hide keys in Bash output yet (`oathkey hook "
+                         "install` adds that)")
         if group.get("matcher") != MATCHER:
             notes.append("OUTDATED: it does not watch every tool this version does "
                          "(MCP tools among them; run `oathkey hook install` to update it)")
