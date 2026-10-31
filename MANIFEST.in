@@ -11,3 +11,6 @@ include SECURITY.md
 include docs/THREAT_MODEL.md
 recursive-include scripts *.py
 recursive-include packaging *.json *.js *.cmd *.yaml *.md
+
+# The Agent Leak Benchmark: tests/test_leakbench.py imports it.
+recursive-include leakbench *.py *.json *.md
