@@ -429,6 +429,7 @@ class Finding:
     key_url: str | None = None
     can_validate: bool = True
     skip_reason: str = ""       # why it can never be sent, when can_validate is False
+    fix: str = ""               # a better next step than the default (MCP configs, bundles)
     _value: str = dataclasses.field(default="", repr=False, compare=False)
 
     @property
@@ -438,6 +439,8 @@ class Finding:
 
 def next_step_text(f: Finding) -> str:
     """Plain words: what to do about this one."""
+    if f.fix:
+        return f.fix
     if f.skip_reason.startswith("it is a password"):
         return ("Change this password where it is set (the database or service "
                 "that uses it), then keep the new one out of files an AI agent reads.")
@@ -719,7 +722,8 @@ def _utf16_guess(data: bytes) -> str | None:
     return None
 
 
-def read_text_safely(path: str, root_real: str) -> tuple[str | None, str | None]:
+def read_text_safely(path: str, root_real: str,
+                     limit: int = MAX_FILE_BYTES) -> tuple[str | None, str | None]:
     """(text, None) or (None, why-it-was-skipped). Opens only a regular file
     of at most MAX_FILE_BYTES, without blocking and without following a link
     that leaves `root_real`. UTF-8 (with or without a byte-order mark) and
@@ -734,8 +738,8 @@ def read_text_safely(path: str, root_real: str) -> tuple[str | None, str | None]
             st = os.stat(real)
         if not stat.S_ISREG(st.st_mode):
             return None, "not a regular file (pipe, device or folder)"
-        if st.st_size > MAX_FILE_BYTES:
-            return None, "bigger than 1 MB"
+        if st.st_size > limit:
+            return None, f"bigger than {limit // (1024 * 1024)} MB"
         flags = (os.O_RDONLY | getattr(os, "O_NONBLOCK", 0)
                  | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0))
         fd = os.open(real, flags)
@@ -743,7 +747,7 @@ def read_text_safely(path: str, root_real: str) -> tuple[str | None, str | None]
             if not stat.S_ISREG(os.fstat(fd).st_mode):
                 return None, "not a regular file (pipe, device or folder)"
             chunks, total = [], 0
-            while total <= MAX_FILE_BYTES:
+            while total <= limit:
                 chunk = os.read(fd, 65536)
                 if not chunk:
                     break
@@ -754,8 +758,8 @@ def read_text_safely(path: str, root_real: str) -> tuple[str | None, str | None]
     except OSError as e:
         return None, f"could not be read ({e.strerror or 'error'})"
     data = b"".join(chunks)
-    if len(data) > MAX_FILE_BYTES:
-        return None, "bigger than 1 MB"
+    if len(data) > limit:
+        return None, f"bigger than {limit // (1024 * 1024)} MB"
     if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
         return data.decode("utf-16", errors="replace"), None
     guess = _utf16_guess(data)
@@ -847,6 +851,7 @@ class ScanResult:
     findings: list[Finding]
     skipped: list[Skipped]
     validated: bool = False
+    kind: str = "agent"         # "agent" files, or a web "bundle"
 
     @property
     def incomplete(self) -> bool:
@@ -891,7 +896,7 @@ def scan_path(target: str, catalog: dict, everything: bool = False) -> ScanResul
             why = why or "skipped"
             parts = tuple(rel.split("/"))
             gap = why.startswith("could not be read") or (
-                why == "bigger than 1 MB" and _is_agent_path(parts))
+                why.startswith("bigger than") and _is_agent_path(parts))
             skipped.append(Skipped(rel, why, gap))
             continue
         scanned += 1
@@ -1095,10 +1100,16 @@ def render_text(result: ScanResult) -> str:
             out.append(f"      - {r}")
         if len(reasons) > 8:
             out.append(f"      - ... and {len(reasons) - 8} more (--json lists them)")
+    bundle = result.kind == "bundle"
     if n == 0:
         out.append("  No keys found in the files that were scanned."
                    if result.incomplete else
+                   "  No secret keys found in the files a browser downloads."
+                   if bundle else
                    "  No keys found in files an AI agent can read.")
+    elif bundle:
+        out.append(f"  Found {n} key{'s' if n != 1 else ''} in the files your "
+                   f"site sends to every visitor's browser.")
     else:
         out.append(f"  Found {n} key{'s' if n != 1 else ''} an AI agent can "
                    f"read. Anything it reads can end up in its memory and logs.")
@@ -1117,7 +1128,7 @@ def render_text(result: ScanResult) -> str:
             parts.append(f"{sum(counts.values()) - sum(c for _r, c in counts.most_common(4))} other")
         out.append(f"\n  Skipped {len(quiet)} item{'s' if len(quiet) != 1 else ''} "
                    f"({'; '.join(parts)}); --json lists them.")
-    if n:
+    if n and not bundle:
         out.append("\n  To stop an agent reading .env files, run: "
                    "oathkey hook install")
     out.append("")
@@ -1210,7 +1221,8 @@ def cmd_scan(args, catalog: dict, out=None, err=None, **hooks) -> int:
     out = out or sys.stdout
     err = err or sys.stderr
     target = args.path
-    if not os.path.exists(target):
+    bundle = getattr(args, "bundle", None)
+    if not bundle and not os.path.exists(target):
         err.write(f"error: {printable(target)} does not exist.\n")
         return 2
     mine = [s for s, r in catalog.items() if r.get("_builtin") is not True]
@@ -1220,10 +1232,22 @@ def cmd_scan(args, catalog: dict, out=None, err=None, **hooks) -> int:
     # the host list and the questions go to stderr: stdout is the report
     # (and is pure JSON or SARIF when asked for)
     try:
-        result = scan_path(target, catalog, everything=args.all)
+        if bundle:
+            from . import bundle as bundle_mod
+            result = bundle_mod.scan_bundle(bundle, catalog)
+        else:
+            result = scan_path(target, catalog, everything=args.all)
+            if not getattr(args, "no_mcp", False):
+                from . import mcpwrap
+                mcpwrap.add_to_scan(result, catalog, root=target)
     except OSError as e:
-        err.write(f"error: could not scan {printable(target)}: {e.strerror or e}\n")
+        err.write(f"error: could not scan {printable(bundle or target)}: "
+                  f"{printable(e.strerror or e)}\n")
         return 2
+    except ValueError as e:              # a refused --bundle address, said plainly
+        err.write(f"error: {printable(e)}\n")
+        return 2
+
     if args.fail_on == "live" and not args.validate:
         err.write("note: --fail-on live needs --validate; without it no key "
                   "is checked, so none counts as live.\n")
