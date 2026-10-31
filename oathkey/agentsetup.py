@@ -38,7 +38,8 @@ HONEST = """
 
 
 def server_entry(client: str, keychain_ok: bool) -> dict:
-    args = ["-m", "oathkey", "mcp"]
+    from . import clients
+    args = clients.self_args() + ["mcp"]
     if keychain_ok:
         args += ["--default-store", "keychain"]
     return {"command": os.path.abspath(sys.executable), "args": args}

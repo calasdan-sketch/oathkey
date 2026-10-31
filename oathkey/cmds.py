@@ -190,3 +190,83 @@ def cmd_start(catalog: dict, env_file: str) -> int:
         print("\nNext: connect your first service, for example:\n"
               "  oathkey get github")
     return OK if d["ok"] else PROBLEM
+
+
+# ---- start --simple: for people building with Lovable, Bolt, Replit or Vercel ----
+
+BUILDERS = [
+    ("Lovable", "In Lovable, open the Cloud tab, then Secrets, and add it there.",
+     ["https://docs.lovable.dev/features/secrets"]),
+    ("Bolt", "In Bolt, click the database icon, open Secrets, and add it there. If "
+             "your site is on Netlify, add it in Netlify too: Site settings, then "
+             "Environment variables.",
+     ["https://bolt.new/resources/ai-builder-glossary/environment-variables",
+      "https://docs.netlify.com/build/environment-variables/overview/"]),
+    ("Replit", "In Replit, open the Secrets tool and add it there.",
+     ["https://docs.replit.com/core-concepts/project-editor/app-setup/secrets"]),
+    ("Vercel (or v0)", "In Vercel, open your project, then Settings, then "
+                       "Environment Variables, and add it there.",
+     ["https://vercel.com/docs/environment-variables"]),
+    ("Something else", "Look for \"Secrets\" or \"Environment variables\" in your "
+                       "host's settings and add it there. For a Supabase edge "
+                       "function, see the page below.",
+     ["https://supabase.com/docs/guides/functions/secrets"]),
+]
+
+
+def _cli(argv: list) -> int:
+    from . import cli
+    return cli.main(argv)
+
+
+def cmd_start_simple(catalog: dict, ask=input, out=print, run=_cli) -> int:
+    """One question at a time, in plain words. Enter on its own stops."""
+    out("\noathkey - let's set up one key for your app. Press Enter on its own to stop.\n")
+    out("Which app builder do you use?")
+    for i, (name, _how, _links) in enumerate(BUILDERS, 1):
+        out(f"  {i}. {name}")
+    pick = ask("Type a number: ").strip()
+    if not pick:
+        return OK
+    if pick not in [str(i) for i in range(1, len(BUILDERS) + 1)]:
+        out("Please type one of the numbers. Run `oathkey start --simple` to try again.")
+        return USAGE
+    name, how, links = BUILDERS[int(pick) - 1]
+    while True:
+        slug = ask("\nWhich service is the key for (for example openai, stripe, "
+                   "resend)? ").strip().lower()
+        if not slug:
+            return OK
+        if slug in catalog:
+            break
+        import difflib
+        close = difflib.get_close_matches(slug, list(catalog), n=3, cutoff=0.5)
+        out("I don't know that one." + (f" Did you mean: {', '.join(close)}?" if close else
+                                        " `oathkey list` shows them all."))
+    recipe = catalog[slug]
+    env = " and ".join(recipes_mod.env_vars(recipe))
+    out(f"\nStep 1 of 3: get your {recipe.get('display', slug)} key. A page opens where "
+        "you make the key; copy it, and oathkey checks it and keeps it safe on this "
+        "computer. Keep that page open.")
+    code = run(["get", slug])
+    if code != OK:
+        out(f"\nThat did not finish. Try again any time with: oathkey get {slug}")
+        return code
+    out("\nStep 2 of 3: give the key to your app.\n"
+        "Keep this key on the server side. Never put it in a setting whose name "
+        "starts with VITE_ or NEXT_PUBLIC_: those are copied into your web page, "
+        "where every visitor can read them.")
+    out(f"{how} Name it {env}. Copy the key once more from the page you kept open "
+        "and paste it in as the value.")
+    if name.startswith("Vercel"):
+        out(f"Or let oathkey send it for you (needs the vercel tool, signed in): "
+            f"oathkey export {slug} --to vercel")
+    out("How-to: " + "  ".join(links))
+    url = ask("\nStep 3 of 3: is your app online? Type its address (https://...) and "
+              "I'll check it does not give your key away to visitors: ").strip()
+    if not url:
+        out("Done. You can check it later with: oathkey scan --bundle https://your-site")
+        return OK
+    if "://" not in url:
+        url = "https://" + url
+    return run(["scan", "--bundle", url])

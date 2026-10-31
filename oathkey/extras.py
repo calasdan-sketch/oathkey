@@ -72,8 +72,11 @@ def add_parsers(sub) -> None:
                                           "(your saved keys are not touched).")
     un.add_argument("targets", nargs="*")
     un.add_argument("--yes", action="store_true", help="Do not ask.")
-    sub.add_parser("start", help="First run: check this computer, look for loose "
-                                 "keys, and say what to do next.")
+    st = sub.add_parser("start", help="First run: check this computer, look for loose "
+                                      "keys, and say what to do next.")
+    st.add_argument("--simple", action="store_true",
+                    help="Plain-English setup, one question at a time, for apps "
+                         "made with Lovable, Bolt, Replit or Vercel.")
     ov = sub.add_parser("overview", help="What is connected, and is the activity log intact.")
     ov.add_argument("--json", action="store_true", help="Machine-readable output.")
     ov.add_argument("--env-file", default=".env")
@@ -134,6 +137,8 @@ def dispatch(args, catalog: dict):
     if cmd in ("start", "overview", "audit", "call", "serve"):
         from . import cmds
         if cmd == "start":
+            if args.simple:
+                return cmds.cmd_start_simple(catalog)
             return cmds.cmd_start(catalog, ".env")
         if cmd == "overview":
             return cmds.cmd_status(catalog, args.env_file, args.json)

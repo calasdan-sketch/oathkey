@@ -358,7 +358,9 @@ def _builtin_for(var: str, catalog: dict) -> tuple[str | None, bool]:
 
 def _is_wrapped(entry: dict) -> bool:
     args = _parts(entry)["args"]
-    return any(args[i:i + 3] == _RUN for i in range(len(args)))
+    return any(args[i:i + 3] == _RUN or (str(args[i]).endswith(".pyz")
+                                         and args[i + 1:i + 2] == ["run"])
+               for i in range(len(args)))
 
 
 def plan(server: Server, catalog: dict) -> dict:
@@ -396,7 +398,7 @@ def plan(server: Server, catalog: dict) -> dict:
         groups.append((slug, user_recipe(slug, [s.name for s in own]), own))
     prefix: list[str] = []
     for slug, _r, _s in groups:
-        prefix += [sys.executable, *clients.python_flags(), *_RUN, slug, "--"]
+        prefix += [sys.executable, *clients.python_flags(), *clients.self_args(), *_RUN[2:], slug, "--"]
     full = prefix + [cmd, *[a for a in server.entry.get("args") or []]]
     new = {**server.entry, "command": full[0], "args": full[1:]}
     rest = {k: v for k, v in (server.entry.get("env") or {}).items()

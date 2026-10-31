@@ -16,6 +16,8 @@ import tempfile
 import time
 
 NAME = "oathkey"
+LABELS = {"claude-desktop": "Claude Desktop", "cursor": "Cursor",
+          "claude-code": "Claude Code", "vscode": "VS Code"}
 
 
 def _keychain_available() -> bool:
@@ -31,10 +33,17 @@ def server_entry(keychain_ok: bool | None = None) -> dict:
     one: that is the only place the `call_api` tool looks for them."""
     if keychain_ok is None:
         keychain_ok = _keychain_available()
-    args = python_flags() + ["-m", "oathkey", "mcp"]
+    args = python_flags() + self_args() + ["mcp"]
     if keychain_ok:
         args += ["--default-store", "keychain"]
     return {"command": sys.executable, "args": args}
+
+
+def self_args() -> list[str]:
+    """What follows `python` to start this oathkey again: `-m oathkey`, or the
+    path of the oathkey.pyz it runs from (set by the .pyz's own __main__)."""
+    pyz = getattr(sys.modules.get("oathkey"), "PYZ", None)
+    return [pyz] if pyz else ["-m", "oathkey"]
 
 
 def python_flags() -> list[str]:
@@ -61,6 +70,19 @@ def targets(env=None, home=None, cwd=None) -> dict:
     out["cursor"] = (os.path.join(home, ".cursor", "mcp.json"), "mcpServers")
     out["claude-code"] = (os.path.join(cwd, ".mcp.json"), "mcpServers")
     out["vscode"] = (os.path.join(cwd, ".vscode", "mcp.json"), "servers")
+    return out
+
+
+def plugged(tg: dict | None = None) -> list[str]:
+    """The AI tools whose config file has oathkey in it (the doctor's check)."""
+    out = []
+    for name, (path, key) in (targets() if tg is None else tg).items():
+        try:
+            with open(path, encoding="utf-8-sig") as f:
+                if NAME in json.load(f).get(key, {}):
+                    out.append(name)
+        except (OSError, ValueError, AttributeError, TypeError):
+            continue
     return out
 
 
@@ -151,6 +173,11 @@ def run(names, yes: bool, ask=input, out=print, **kw) -> int:
         out("no AI tools found. Name one: " + ", ".join(tg))
     elif done:
         out("\nRestart the AI tool so it loads oathkey.")
+    if chosen:                               # the doctor's connection check
+        on = plugged(tg)
+        out("")
+        for n in chosen:
+            out(f"  {LABELS.get(n, n)}: {'connected' if n in on else 'not connected'}")
     return 0
 
 

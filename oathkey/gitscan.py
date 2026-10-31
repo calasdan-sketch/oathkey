@@ -186,7 +186,6 @@ def doctor(env=None, which=shutil.which) -> dict:
 def _doctor_oathkey_checks(add) -> None:
     """Checks about oathkey itself. Each is wrapped so one failure never
     hides the others."""
-    import json
     try:
         from . import broker, remote
         log = broker.AuditLog(os.path.join(remote.home_dir(), "audit.log"))
@@ -199,14 +198,7 @@ def _doctor_oathkey_checks(add) -> None:
         add("activity log", False, f"could not check ({type(e).__name__})", "")
     try:
         from . import clients
-        plugged = []
-        for name, (path, key) in clients.targets().items():
-            try:
-                with open(path, encoding="utf-8") as f:
-                    if "oathkey" in json.load(f).get(key, {}):
-                        plugged.append(name)
-            except (OSError, ValueError, AttributeError):
-                continue
+        plugged = clients.plugged()
         add("AI tools", True, ("plugged into " + ", ".join(plugged)) if plugged
             else "none yet", "" if plugged else "Run `oathkey install` to plug it into Claude, Cursor or VS Code.")
     except Exception as e:                                   # noqa: BLE001
@@ -310,13 +302,16 @@ def install_hook(repo: str = ".") -> str:
         with open(path, encoding="utf-8") as f:
             if HOOK_MARK not in f.read():
                 raise OSError("a pre-commit hook already exists; not overwriting it")
+    from . import clients
     py = _sys.executable.replace("\\", "/")
-    if any(c in py for c in '"$`'):
+    me = [a.replace("\\", "/") for a in clients.self_args()]
+    if any(c in a for a in (py, *me) for c in '"$`'):
         raise OSError("the Python path has a character that is unsafe in a hook")
+    me = f'"{me[0]}"' if len(me) == 1 else " ".join(me)     # the .pyz path, quoted
     _flag = "-P" if _sys.version_info >= (3, 11) else "-I"
     body = (f"#!/bin/sh\n{HOOK_MARK}\n"
             f"# blocks the commit if a key is staged, and if the scanner itself fails\n"
-            f"\"{py}\" {_flag} -m oathkey scan-git --staged || {{ echo 'commit blocked by oathkey' >&2; exit 1; }}\n")
+            f"\"{py}\" {_flag} {me} scan-git --staged || {{ echo 'commit blocked by oathkey' >&2; exit 1; }}\n")
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(body)
     try:

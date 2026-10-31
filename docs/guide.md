@@ -166,6 +166,13 @@ oathkey --version
 
 From source: `pip install git+https://github.com/calasdan-sketch/oathkey`.
 
+No pip? Each release also has `oathkey.pyz`, one file that runs with any
+Python 3.10+: `python oathkey.pyz doctor`. The first run unpacks it once into
+`~/.oathkey/pyz/`. Build it yourself with `python scripts/build_pyz.py`.
+`npx oathkey` and winget packages are prepared (see
+[packaging.md](packaging.md)). The `.pyz` refuses `hook install`: the Claude
+Code `.env` hook needs the pip install.
+
 That installs the `oathkey` command (`py -m oathkey` / `python -m
 oathkey` works too). From a checkout: `pip install .`
 
@@ -370,8 +377,9 @@ file (`echo .env >> .gitignore`). Keep keys out of the files too:
 ## Commands
 
 ```bash
-oathkey install | uninstall         # plug oathkey into (or out of) Claude Desktop, Cursor, Claude Code, VS Code
+oathkey install | uninstall         # plug oathkey into (or out of) Claude Desktop, Cursor, Claude Code, VS Code; ends with "Claude Code: connected" etc.
 oathkey start                       # first run: check this computer, look for loose keys, say what is next
+oathkey start --simple              # plain-English setup, one question at a time, for apps made with Lovable, Bolt, Replit or Vercel
 oathkey overview [--json]           # what is connected, and is the activity log intact
 oathkey doctor [--json]             # is this computer ready (keychain, ssh, git, a quick self-attack)
 oathkey trust-server user@host      # make a server trust this PC (used by remote and deploy)
