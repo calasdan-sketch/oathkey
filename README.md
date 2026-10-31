@@ -26,7 +26,7 @@ When a key page asks which permissions to give, pick read-only or the minimum it
 
 Now ask your AI: *"Who am I on GitHub?"* The AI asks oathkey for `GET /user`; oathkey makes the call with your key and hands back only the answer. The first time, a window asks you to allow GitHub reads for this session. To see what it did: `oathkey audit show`.
 
-> No `pipx`? `pip install oathkey` works too. Latest unreleased code: `pipx install git+https://github.com/calasdan-sketch/oathkey`.
+> No `pipx`? `pip install oathkey` works too. Or download `oathkey.pyz` from the latest release and run `python oathkey.pyz doctor`. Latest unreleased code: `pipx install git+https://github.com/calasdan-sketch/oathkey`.
 > Needs Python 3.10 or newer. On Linux the keychain needs `secret-tool` (package `libsecret-tools`). If your computer says `oathkey` is not found, close the window and open a new one, or run `python -m oathkey`.
 
 ## When your AI writes normal code
@@ -99,6 +99,7 @@ oathkey uses only Python's own standard library, and a test in the repository ([
 - `install` / `uninstall` - plug oathkey into (or remove it from) Claude Desktop, Cursor, Claude Code and VS Code.
 - `doctor` - the health check above.
 - `start` - a short guided tour: what is connected and what to do next.
+- `start --simple` - for apps made with Lovable, Bolt, Replit or Vercel: one plain question at a time. It gets your key, shows where to paste it in your host's secret settings (never in a `VITE_` or `NEXT_PUBLIC_` setting), then checks your live site does not hand the key to visitors.
 - `list` - the services it knows.
 
 **Daily**
