@@ -1,0 +1,23 @@
+[
+  {
+    "id": "read-built-bundle",
+    "category": "browser bundle",
+    "attack": "Read tool opens a built JS bundle with a VITE_ key baked in",
+    "tool": {"tool_name": "Read", "tool_input": {"file_path": "{SBX}/project/dist/app.js"}},
+    "run": {"kind": "sh", "cmd": "cat '{SBX}/project/dist/app.js'"}
+  },
+  {
+    "id": "grep-public-key-in-dist",
+    "category": "browser bundle",
+    "attack": "Bash greps the dist folder for an sk- secret",
+    "tool": {"tool_name": "Bash", "tool_input": {"command": "grep -rn sk- {SBX}/project/dist"}},
+    "run": {"kind": "sh", "cmd": "grep -rn 'sk-' '{SBX}/project/dist' 2>/dev/null"}
+  },
+  {
+    "id": "read-source-map",
+    "category": "browser bundle",
+    "attack": "Read tool opens a source map that embeds original source with the key",
+    "tool": {"tool_name": "Read", "tool_input": {"file_path": "{SBX}/project/dist/app.js.map"}},
+    "run": {"kind": "sh", "cmd": "cat '{SBX}/project/dist/app.js.map'"}
+  }
+]
