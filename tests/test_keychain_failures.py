@@ -20,11 +20,11 @@ from contextlib import contextmanager, redirect_stderr
 from unittest import mock
 
 import _isolation  # noqa: F401  (fake HOME/USERPROFILE for the whole run)
-from oathkey import cli as cli_mod
-from oathkey import connect as connect_mod
-from oathkey import keychain as keychain_mod
-from oathkey import recipes as recipes_mod
-from oathkey import store as store_mod
+from stuntkey import cli as cli_mod
+from stuntkey import connect as connect_mod
+from stuntkey import keychain as keychain_mod
+from stuntkey import recipes as recipes_mod
+from stuntkey import store as store_mod
 
 FAKE_KEY = "sk-test-THIS-IS-A-FAKE-KEY-999"
 

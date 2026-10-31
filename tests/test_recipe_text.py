@@ -27,9 +27,9 @@ from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
 import _isolation  # noqa: F401  (fake HOME/USERPROFILE for the whole run)
-from oathkey import cli as cli_mod
-from oathkey import connect as connect_mod
-from oathkey import recipes as recipes_mod
+from stuntkey import cli as cli_mod
+from stuntkey import connect as connect_mod
+from stuntkey import recipes as recipes_mod
 
 # Built from code points so that no control or invisible character is typed
 # into this file.

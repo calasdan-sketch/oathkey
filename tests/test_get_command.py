@@ -1,8 +1,8 @@
-"""`oathkey get <service>`: one command, keychain + copy-and-go by default."""
+"""`stuntkey get <service>`: one command, keychain + copy-and-go by default."""
 import unittest
 from unittest import mock
 
-from oathkey import cli, clipboard, connect
+from stuntkey import cli, clipboard, connect
 
 
 class GetCommandTests(unittest.TestCase):

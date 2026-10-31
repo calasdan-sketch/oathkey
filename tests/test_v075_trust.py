@@ -8,11 +8,11 @@ import unittest
 import _isolation  # noqa: F401
 import test_v070_capture as base
 import test_v072_round2 as r2
-from oathkey import aboutcmd
-from oathkey import cli as cli_mod
-from oathkey import dialog as dialog_mod
-from oathkey import mcp as mcp_mod
-from oathkey import validate as validate_mod
+from stuntkey import aboutcmd
+from stuntkey import cli as cli_mod
+from stuntkey import dialog as dialog_mod
+from stuntkey import mcp as mcp_mod
+from stuntkey import validate as validate_mod
 
 CATALOG, GH_KEY = base.CATALOG, base.GH_KEY
 wait_for, until = base.wait_for, base.until
@@ -76,9 +76,9 @@ class TestAbout(unittest.TestCase):
         out = io.StringIO()
         self.assertEqual(aboutcmd.cmd_about(out), 0)
         text = out.getvalue()
-        for needle in ("Calas Automations", "pip show oathkey",
-                       "https://pypi.org/project/oathkey/",
-                       "https://github.com/calasdan-sketch/oathkey", "reports about"):
+        for needle in ("Calas Automations", "pip show stuntkey",
+                       "https://pypi.org/project/stuntkey/",
+                       "https://github.com/calasdan-sketch/stuntkey", "reports about"):
             self.assertIn(needle, text)
 
     def test_the_command_exists(self):
@@ -87,7 +87,7 @@ class TestAbout(unittest.TestCase):
         with redirect_stdout(out):
             code = cli_mod.main(["about"])
         self.assertEqual(code, 0)
-        self.assertIn("pip show oathkey", out.getvalue())
+        self.assertIn("pip show stuntkey", out.getvalue())
 
 
 class TestClosedWindowIsNotRecorded(base.Base):

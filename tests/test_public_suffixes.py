@@ -17,8 +17,8 @@ import unittest
 from unittest import mock
 
 import _isolation  # noqa: F401  (fake HOME/USERPROFILE for the whole run)
-from oathkey import connect as connect_mod
-from oathkey import recipes as recipes_mod
+from stuntkey import connect as connect_mod
+from stuntkey import recipes as recipes_mod
 
 rd = connect_mod.registrable_domain
 same = connect_mod.same_owner

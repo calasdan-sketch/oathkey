@@ -3,9 +3,9 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "oathkey"
-version = "0.8.0"
-description = "Let your AI use your API keys through oathkey without ever holding them: guided one-command setup, brokered API calls, a self-attack test and an activity log. Reduces risk; not independently reviewed."
+name = "stuntkey"
+version = "0.9.0"
+description = "Let your AI use your API keys through stuntkey without ever holding them: guided one-command setup, brokered API calls, a self-attack test and an activity log. Reduces risk; not independently reviewed."
 readme = "README.md"
 license = "MIT"
 authors = [{ name = "Calas Automations Inc." }]
@@ -31,18 +31,18 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/calasdan-sketch/oathkey"
-Issues = "https://github.com/calasdan-sketch/oathkey/issues"
-Source = "https://github.com/calasdan-sketch/oathkey"
-Changelog = "https://github.com/calasdan-sketch/oathkey/blob/main/CHANGELOG.md"
-Documentation = "https://github.com/calasdan-sketch/oathkey/blob/main/docs/guide.md"
-Security = "https://github.com/calasdan-sketch/oathkey/security/policy"
+Homepage = "https://calasautomations.com/devtools/stuntkey/"
+Issues = "https://github.com/calasdan-sketch/stuntkey/issues"
+Source = "https://github.com/calasdan-sketch/stuntkey"
+Changelog = "https://github.com/calasdan-sketch/stuntkey/blob/main/CHANGELOG.md"
+Documentation = "https://calasautomations.com/devtools/stuntkey/"
+Security = "https://github.com/calasdan-sketch/stuntkey/security/policy"
 
 [project.scripts]
-oathkey = "oathkey.cli:main"
+stuntkey = "stuntkey.cli:main"
 
 [tool.setuptools]
-packages = ["oathkey"]
+packages = ["stuntkey"]
 
 [tool.setuptools.package-data]
-oathkey = ["recipes/*.json", "skill/*.md"]
+stuntkey = ["recipes/*.json", "skill/*.md"]

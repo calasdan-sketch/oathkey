@@ -1,26 +1,26 @@
 > This is the full guide. The short front page is the [README](../README.md).
 
-# oathkey
+# stuntkey
 
 **Quickstart**
 
 ```bash
-pipx install oathkey          # Python 3.10+, no other dependencies
-oathkey scan                  # find keys an AI agent can read (works offline)
-oathkey hook install          # stop Claude Code reading your .env files
-oathkey list                  # the services it knows (36 built in)
-oathkey connect github        # opens the key page, shows the exact steps
+pipx install stuntkey          # Python 3.10+, no other dependencies
+stuntkey scan                  # find keys an AI agent can read (works offline)
+stuntkey hook install          # stop Claude Code reading your .env files
+stuntkey list                  # the services it knows (36 built in)
+stuntkey connect github        # opens the key page, shows the exact steps
 #   paste the key when asked (typing is hidden), or use --clipboard and
 #   click the vendor's Copy button; the key is tested with one API call
 #   and only then saved to .env (owner-only) - or to the OS keychain:
-oathkey connect openai --store keychain
-oathkey run openai -- python app.py     # keychain key goes to that command only
-oathkey forget openai         # remove it from the keychain and .env
+stuntkey connect openai --store keychain
+stuntkey run openai -- python app.py     # keychain key goes to that command only
+stuntkey forget openai         # remove it from the keychain and .env
 
 # a whole project at once (0.6.0):
-oathkey init --write          # list the services the project uses (oathkey.json, no secrets)
-oathkey setup                 # connect every service that has no key yet
-oathkey status                # where each key lives, how old it is
+stuntkey init --write          # list the services the project uses (stuntkey.json, no secrets)
+stuntkey setup                 # connect every service that has no key yet
+stuntkey status                # where each key lives, how old it is
 ```
 
 The key is never displayed, never logged, never in shell history.
@@ -30,17 +30,17 @@ instruction files and, if you let them, your `.env`. A key pasted into
 one of those is in the agent's memory and its conversation log. Radware
 (August 2026) looked at about 100,000 agent instruction files: roughly
 0.69% held a real credential, and 60% of the keys it could test still
-worked. `oathkey scan` finds them in seconds and tells you what to
+worked. `stuntkey scan` finds them in seconds and tells you what to
 do about each.
 
-oathkey lets your AI use your API keys without holding them, and gets a key
+stuntkey lets your AI use your API keys without holding them, and gets a key
 set up in one command. Connecting a website tool usually means 40 minutes of
 hunting through dashboards, imprecise docs, and fumbling a secret into the
-right file. `oathkey get github` does it in one step: it opens the exact key
+right file. `stuntkey get github` does it in one step: it opens the exact key
 page, takes the key when you click Copy (or from hidden typing), **validates it
 with a test API call**, and saves it in your OS keychain.
 
-`oathkey connect github` is the older, longer way: it walks the saved steps and
+`stuntkey connect github` is the older, longer way: it walks the saved steps and
 writes the key to `.env` with owner-only permissions unless you add
 `--store keychain`. If the keychain does not work, it asks before using `.env`
 instead; nothing is saved to a file without your yes. The key is never
@@ -54,7 +54,7 @@ shell history, never in an AI agent's chat.** Here is exactly what that
 means, what you do, and what the tool does.
 
 ```bash
-oathkey connect openai --clipboard
+stuntkey connect openai --clipboard
 ```
 
 | You | The tool |
@@ -73,28 +73,28 @@ the zero-copy mode: GitHub's own `gh` signs you in and hands the token over.
 Then, in your project:
 
 ```bash
-oathkey init --write      # writes oathkey.json: service names + variable names, no secrets, commit it
-oathkey setup             # walks every service that has no key yet; safe to run again
-oathkey run --all -- python app.py   # the program gets the keys; its output is scrubbed of them
-oathkey export groq --to github      # copy a key into GitHub Actions secrets, through gh's standard input
-oathkey status            # which keys exist, where, how old; says when to rotate
+stuntkey init --write      # writes stuntkey.json: service names + variable names, no secrets, commit it
+stuntkey setup             # walks every service that has no key yet; safe to run again
+stuntkey run --all -- python app.py   # the program gets the keys; its output is scrubbed of them
+stuntkey export groq --to github      # copy a key into GitHub Actions secrets, through gh's standard input
+stuntkey status            # which keys exist, where, how old; says when to rotate
 ```
 
 **AI agents.** Claude Code (or any MCP client) never handles a key. The
 `capture_key` tool (0.7.0) lets the agent do the whole job: it drives the
-browser, makes the key and clicks the vendor's own Copy button; oathkey
+browser, makes the key and clicks the vendor's own Copy button; stuntkey
 takes the key from the clipboard, empties it, tests it and stores it, and the
 agent is told only `{state: "stored", env_vars, stored_in, key_length}`.
 `request_connect` answers `{service, env_var, status, instructions, browser,
 rules}`, and `needs_keys` lists which keys a project lacks. Only when
 `capture_key` is unavailable (no clipboard access, headless, or the person
-has not allowed it) is the person asked to run `oathkey connect
+has not allowed it) is the person asked to run `stuntkey connect
 <service>` in their own terminal. No tool can return a
 secret value: answers are built from names and status words only, and a
 second filter blanks any secret the server can reach (a variable in its
 environment, a value in the project's `.env`), also in base64, hex and
 URL-encoded form. A test plants canary keys everywhere and searches every
-tool answer and every JSON output for them. The agent skill (the same rules, written for the agent) ships inside the package. Install it with `oathkey skill install` (for you) or `oathkey skill install --project` (this project only); it never overwrites a different file without asking.
+tool answer and every JSON output for them. The agent skill (the same rules, written for the agent) ships inside the package. Install it with `stuntkey skill install` (for you) or `stuntkey skill install --project` (this project only); it never overwrites a different file without asking.
 
 ### What it cannot do
 
@@ -117,15 +117,15 @@ tool answer and every JSON output for them. The agent skill (the same rules, wri
   detect a clipboard manager: if you run one, use the hidden prompt.
 - **It cannot stop the vendor's page, a browser extension or malware** that
   can read the page or your clipboard from seeing the key.
-- **An agent that can run `oathkey run` can still get the key.** The key
+- **An agent that can run `stuntkey run` can still get the key.** The key
   lives in the child program's environment, readable by the same user, and a
   program started by the agent can print it reversed, hashed, split or
   encoded in a way redaction does not know. The hook refuses the obvious
   routes (`run --no-redact`, `secret-tool`, `security find-generic-password`,
-  `cmdkey`, `Get-Secret`, `keyring`, `/proc/*/environ`, `~/.oathkey`), and
+  `cmdkey`, `Get-Secret`, `keyring`, `/proc/*/environ`, `~/.stuntkey`), and
   `--no-redact` refuses to work unless you are at a terminal. None of that
   is a wall. For a sensitive service, run agent sessions without permission
-  to use `oathkey run` (a deny rule in Claude Code), and start the
+  to use `stuntkey run` (a deny rule in Claude Code), and start the
   program yourself in your own terminal: the agent writes the code, you run
   it. The MCP instructions tell agents to ask you, not to run it themselves.
 - **Redaction is not a vault.** `run` scrubs the exact key and its common
@@ -148,7 +148,7 @@ tool answer and every JSON output for them. The agent skill (the same rules, wri
 - **The hook is a guardrail, not a wall** (see below), and `scan` finds keys by
   their shape: a key with no recognisable shape can slip past it.
 - **It was not run against real vendor dashboards** for this release: the
-  recipes follow the vendors' documentation, and `oathkey doctor-recipes`
+  recipes follow the vendors' documentation, and `stuntkey doctor-recipes`
   (also a weekly check on GitHub) tells you when an address has moved.
 - **`export` works only through `gh` and `vercel`** (installed and signed in);
   the key reaches them on standard input, never on a command line. Other
@@ -160,29 +160,60 @@ tool answer and every JSON output for them. The agent skill (the same rules, wri
 Zero dependencies — Python 3.10+ stdlib only.
 
 ```bash
-pipx install oathkey        # or: pip install oathkey
-oathkey --version
+pipx install stuntkey        # or: pip install stuntkey
+stuntkey --version
 ```
 
-From source: `pip install git+https://github.com/calasdan-sketch/oathkey`.
+From source: `pip install git+https://github.com/calasdan-sketch/stuntkey`.
 
-That installs the `oathkey` command (`py -m oathkey` / `python -m
-oathkey` works too). From a checkout: `pip install .`
+No pip? Each release also has `stuntkey.pyz`, one file that runs with any
+Python 3.10+: `python stuntkey.pyz doctor`. The first run unpacks it once into
+`~/.stuntkey/pyz/`. Build it yourself with `python scripts/build_pyz.py`.
+`npx stuntkey` and winget packages are prepared (see
+[packaging.md](packaging.md)). `hook install` works from the `.pyz` too: the
+hook then starts the same `.pyz` again.
+
+That installs the `stuntkey` command (`py -m stuntkey` / `python -m
+stuntkey` works too). From a checkout: `pip install .`
+
+### Coming from oathkey 0.8
+
+stuntkey was called OathKey in 0.8. Nothing
+needs to be done by hand, and nothing old is deleted unless you ask:
+
+- **Your settings folder.** The first run copies `~/.oathkey` to
+  `~/.stuntkey` (only when `~/.stuntkey` does not exist yet) and says so once.
+  The old folder is left as it was.
+- **Saved keys.** 0.8 saved keys in the OS keychain as `oathkey:<service>`.
+  stuntkey still finds them there, and `stuntkey migrate` copies each one to
+  its new name `stuntkey:<service>`, reads the copy back to check it, and
+  never shows a key. The old entries stay; `stuntkey migrate --remove-old`
+  deletes each one after its copy checked out. `stuntkey doctor` reminds you
+  until `migrate` has run cleanly.
+- **Project files.** An old `oathkey.json` or `oathkey.policy` is used when
+  there is no `stuntkey.json` / `stuntkey.policy`, with a note. Rename it when
+  you like.
+- **AI tool settings.** `stuntkey install` replaces 0.8's `oathkey` MCP
+  entry, and `stuntkey hook install` (add `--project` for a project's file)
+  replaces 0.8's hook. Both show the change and ask first (`hook install
+  --yes` does not ask). `stuntkey doctor` points out any old entry left.
+- **The old command.** `pip install oathkey` now installs a small package
+  that says "oathkey is now stuntkey" and passes the command on to stuntkey.
 
 **Windows:** run it from PowerShell or Windows Terminal. Under Git Bash /
 mintty the hidden key prompt (`getpass`) may echo what you type or appear
 to hang, because mintty is not a Windows console; if you must use Git
-Bash, prefix the command with `winpty` (`winpty oathkey connect
+Bash, prefix the command with `winpty` (`winpty stuntkey connect
 stripe`).
 
 ## Scan: find keys an AI agent can read
 
 ```bash
-oathkey scan                  # this folder, offline, nothing leaves your computer
-oathkey scan ~/projects/app   # another folder (or one file)
-oathkey scan --validate       # ALSO ask each key's service if it still works
-oathkey scan --json           # or --sarif, for scripts and code-scanning tools
-oathkey scan --all            # every text file, not just the agent-readable ones
+stuntkey scan                  # this folder, offline, nothing leaves your computer
+stuntkey scan ~/projects/app   # another folder (or one file)
+stuntkey scan --validate       # ALSO ask each key's service if it still works
+stuntkey scan --json           # or --sarif, for scripts and code-scanning tools
+stuntkey scan --all            # every text file, not just the agent-readable ones
 ```
 
 It reads `.env` files (`.env`, `.env.local`, `prod.env` ...), `CLAUDE.md`,
@@ -221,7 +252,7 @@ first 4 and last 2 characters):
 ```
   .env:3   OpenAI   sk-p...Wx   not checked
       next: Rotate it at https://platform.openai.com/api-keys, then run
-      `oathkey connect openai` to save the new one safely.
+      `stuntkey connect openai` to save the new one safely.
 ```
 
 Each finding has one of four states: `unchecked` (the default; nothing was
@@ -246,7 +277,7 @@ its NAME whose value does not have that service's key format (an
 `public` are never matched to a service.
 
 **Only the recipes shipped inside the package are used.** A recipe in
-`~/.oathkey/recipes` brings its own regular expression and names the
+`~/.stuntkey/recipes` brings its own regular expression and names the
 host a key is sent to, so `scan` ignores it - and cannot be made to send a
 key to it - unless you pass `--my-recipes`. With that flag its key format is
 searched for under a 0.25-second timer per piece of text (where the system
@@ -268,10 +299,10 @@ real path.
 ## Hook: stop Claude Code reading `.env`
 
 ```bash
-oathkey hook install            # for you, in ~/.claude/settings.json
-oathkey hook install --project  # for this project, in .claude/settings.json
-oathkey hook status             # is it there, and does it work?
-oathkey hook uninstall          # take it out again
+stuntkey hook install            # for you, in ~/.claude/settings.json
+stuntkey hook install --project  # for this project, in .claude/settings.json
+stuntkey hook status             # is it there, and does it work?
+stuntkey hook uninstall          # take it out again
 ```
 
 This adds a Claude Code "PreToolUse hook": a small check Claude Code runs
@@ -282,11 +313,11 @@ every text in the call's arguments). If the call touches a `.env` file (`.env`,
 plain words. Templates (`.env.example`, `.env.sample`, `.env.template`) are
 allowed, for reading and writing.
 
-It also refuses, for an agent: running `oathkey remote`, `deploy`,
-`trust-server`, `export`, `run`, `serve` or `call` (also as `python -m oathkey
+It also refuses, for an agent: running `stuntkey remote`, `deploy`,
+`trust-server`, `export`, `run`, `serve` or `call` (also as `python -m stuntkey
 ...`; only you run those; `list`, `selftest`, `doctor`, `scan`, `scan-git`,
 `overview`, `audit show`, `--version` and `--help` are fine); wildcard paths
-that could expand to the `~/.oathkey` folder (`~/.*/keys/x`); and writing
+that could expand to the `~/.stuntkey` folder (`~/.*/keys/x`); and writing
 `.claude/settings.json`, `.claude/settings.local.json`, `~/.claude.json` or
 `.mcp.json`, which control which hooks and tools run. A shell command longer
 than 100,000 characters is refused unread (it could otherwise keep the hook
@@ -295,14 +326,14 @@ busy until it times out).
 Writing is refused too (since 0.5.2): a real key an agent types into `.env`
 has passed through the agent, which is what this tool exists to prevent, and a
 `Write` can overwrite your keys. The agent is told: "Claude can't write to
-.env - your keys stay out of the chat. Run: oathkey connect <service> (or
+.env - your keys stay out of the chat. Run: stuntkey connect <service> (or
 edit the file yourself)." If your `.env` holds nothing secret and you want the
 agent to edit it (or those settings files), start Claude Code with
-`OATHKEY_HOOK_ALLOW_WRITE=1` in its environment (only writes are allowed;
+`STUNTKEY_HOOK_ALLOW_WRITE=1` in its environment (only writes are allowed;
 reads stay refused). `Glob` is not
 matched: it lists names only.
 
-Upgrading from 0.5.0 or 0.5.1: run `oathkey hook install` again. It
+Upgrading from 0.5.0 or 0.5.1: run `stuntkey hook install` again. It
 updates our own entry's matcher in place and touches nothing else;
 `hook status` says "OUTDATED" until you do.
 
@@ -310,8 +341,8 @@ Your other hooks and settings are kept. The hook always sits in a matcher
 group of its own: another group's matcher or handlers are never edited, and
 `uninstall` removes only our handler (found by a `statusMessage` marker or by
 the exact command an older version wrote - a hook that merely mentions
-`oathkey` is not ours). Every change first copies the old file to a new
-backup in `~/.oathkey/backups` (the last 20 per file are kept; private to
+`stuntkey` is not ours). Every change first copies the old file to a new
+backup in `~/.stuntkey/backups` (the last 20 per file are kept; private to
 you; never inside a project, where a `.claude/` folder is often committed). A
 settings file that is a symbolic link is changed through the link; one that is
 not valid JSON is left alone (exit 2). Installing twice changes nothing.
@@ -322,22 +353,22 @@ command this installation would write, and says when the file's command is a
 different one.
 
 How the command is written: on macOS and Linux a shell string with the
-installed `oathkey` by its full path (or this Python with `-I`, which
+installed `stuntkey` by its full path (or this Python with `-I`, which
 ignores the current folder). On Windows the documented exec form -
 `"command"` is the program and `"args"` is `["hook", "check"]`, no shell - so
 a backslash or a space in the path survives Git Bash and PowerShell. Claude
 Code's documentation does not say which version introduced `args`; for a
-client that predates it use `oathkey hook install --shell-form` (forward
+client that predates it use `stuntkey hook install --shell-form` (forward
 slashes, quoted; works in Git Bash, not in PowerShell). The timeout is 10
-seconds. `oathkey hook check` is the hook itself: it reads Claude Code's
+seconds. `stuntkey hook check` is the hook itself: it reads Claude Code's
 JSON on stdin (all of it, however big) and prints the answer. Restart Claude
 Code after installing.
 
 **If the hook itself fails** (it cannot start, crashes, times out, or is sent
-something it cannot parse), `oathkey hook install` now makes Claude Code block
+something it cannot parse), `stuntkey hook install` now makes Claude Code block
 the tool call: "fail-closed", the default since 0.8.0 (it sets
 `"onFailure": "block"`; needs Claude Code 2.1.295 or later; a missing or broken
-`oathkey` then blocks every call until you fix or uninstall it). Input that is
+`stuntkey` then blocks every call until you fix or uninstall it). Input that is
 not valid JSON is first searched for a `.env` file name as plain text and
 refused if one is there. If you would rather let calls through when the hook is
 broken, install with `--fail-open`. `hook status` says when an installed hook
@@ -365,62 +396,76 @@ does not stop:
 And it blocks some harmless things: a virtual environment folder named
 `.env` (`source .env/bin/activate`), and a command that merely names the
 file (`echo .env >> .gitignore`). Keep keys out of the files too:
-`oathkey connect <service> --store keychain`.
+`stuntkey connect <service> --store keychain`.
 
 ## Commands
 
 ```bash
-oathkey install | uninstall         # plug oathkey into (or out of) Claude Desktop, Cursor, Claude Code, VS Code
-oathkey start                       # first run: check this computer, look for loose keys, say what is next
-oathkey overview [--json]           # what is connected, and is the activity log intact
-oathkey doctor [--json]             # is this computer ready (keychain, ssh, git, a quick self-attack)
-oathkey trust-server user@host      # make a server trust this PC (used by remote and deploy)
-oathkey scan [PATH]                 # find keys an AI agent can read (offline)
-oathkey scan --validate [--yes]     # also check if they still work (sends them; asks first)
-oathkey scan --json | --sarif       # machine-readable reports
-oathkey scan --fail-on live         # exit 1 only for keys that still work
-oathkey scan --all                  # every text file, not only agent-readable ones
-oathkey hook install [--project] [--fail-open]    # stop Claude Code reading .env files (blocks if the hook breaks, unless --fail-open)
-oathkey hook status | uninstall     # check it / remove it (--settings FILE for another file)
-oathkey list                        # services with saved recipes
-oathkey connect <service>           # guided key setup -> .env
-oathkey connect <service> --env-file /path/to/.env
-oathkey connect <service> --store keychain   # OS keychain instead of .env
-oathkey connect <service> --clipboard        # copy-and-go: click Copy, no pasting
-oathkey connect github --via-cli    # zero-copy: the vendor CLI's browser sign-in
-oathkey connect <service> --no-browser       # don't open the key page (its address is printed)
-oathkey run <service> -- <command>  # run with a stored key (keychain, else .env) in its env only
-oathkey run --all -- <command>      # ... every service in oathkey.json
-oathkey run <service> --no-redact -- <command>   # don't scrub the output (interactive programs)
-oathkey run <service> --redact -- <command>      # scrub it (the default)
-oathkey run <service> --env-file FILE -- <command>   # read keys from another .env
-oathkey --project-dir DIR <command>   # work as if started in DIR (manifest and .env live there)
-oathkey skill install [--project] [--yes]   # copy the agent skill to ~/.claude/skills (never overwrites unasked)
-oathkey init [--write] [--add] [--force]   # write oathkey.json from the project's variable names
-oathkey setup [service ...] [--dry-run]    # connect every missing service in order (resumable)
-oathkey setup --env-file FILE | --no-browser | --clipboard | --allow-clipboard-history
-oathkey status [--json] [--max-age DAYS] [--env-file FILE]   # where keys live, how old
-oathkey export <service> --to github|vercel [--repo OWNER/REPO] [--environment NAME] [--overwrite] [--yes]
-oathkey about                       # who made it and how to check it is the real one
-oathkey allow-agent <service>       # your one-time yes (terminal route; the normal way is the window the server shows)
-oathkey allow-agent <service> --env-file .env.local   # let the agent write to this .env-style file (default: .env only; terminal route only)
-oathkey setup-agent claude-code|claude-desktop|cursor|codex|gemini [--write]   # the MCP entry, with this Python's absolute path
-oathkey skill install --for cursor|codex|gemini|all   # the rules file for that client (marked block, never overwrites yours)
-oathkey mcp --default-store keychain   # where agent-captured keys go (default: the keychain when there is one; install and setup-agent write it)
-oathkey allow-agent <service> --allow-clipboard-history   # ... and accept Windows' clipboard history (terminal route only; with a window, turn history off)
-oathkey allow-agent --list | --revoke [service]   # what is allowed in this project / take it back
-oathkey doctor-recipes [service ...] [--json] [--timeout S] [--my-recipes]   # have recipe addresses rotted?
-oathkey connect <service> --allow-clipboard-history   # keep copy-and-go even if Windows keeps a history
-oathkey rotate <service>            # replace a stored key
-oathkey forget <service>            # remove the key: OS keychain entry + .env line(s)
-oathkey add                         # capture a new service recipe interactively
-oathkey find <query>                # find free public APIs for a task
-oathkey find <query> --category <name>   # only that category (part of its name)
-oathkey find <query> --refresh      # download the directory again now
-oathkey mcp                         # stdio MCP server (for Claude Code)
+stuntkey install | uninstall         # plug stuntkey into (or out of) Claude Desktop, Cursor, Claude Code, VS Code; ends with "Claude Code: connected" etc.
+stuntkey start                       # first run: check this computer, look for loose keys, say what is next
+stuntkey start --simple              # plain-English setup, one question at a time, for apps made with Lovable, Bolt, Replit or Vercel
+stuntkey overview [--json]           # what is connected, and is the activity log intact
+stuntkey doctor [--json]             # is this computer ready (keychain, ssh, git, a quick self-attack)
+stuntkey trust-server user@host      # make a server trust this PC (used by remote and deploy)
+stuntkey scan [PATH]                 # find keys an AI agent can read (offline)
+stuntkey scan --validate [--yes]     # also check if they still work (sends them; asks first)
+stuntkey scan --json | --sarif       # machine-readable reports
+stuntkey scan --fail-on live         # exit 1 only for keys that still work
+stuntkey scan --all                  # every text file, not only agent-readable ones
+stuntkey hook install [--project] [--fail-open]    # stop Claude Code reading .env files (blocks if the hook breaks, unless --fail-open)
+stuntkey hook status | uninstall     # check it / remove it (--settings FILE for another file)
+stuntkey list                        # services with saved recipes
+stuntkey connect <service>           # guided key setup -> .env
+stuntkey connect <service> --env-file /path/to/.env
+stuntkey connect <service> --store keychain   # OS keychain instead of .env
+stuntkey connect <service> --clipboard        # copy-and-go: click Copy, no pasting
+stuntkey connect github --via-cli    # zero-copy: the vendor CLI's browser sign-in
+stuntkey connect <service> --no-browser       # don't open the key page (its address is printed)
+stuntkey run <service> -- <command>  # run with a stored key (keychain, else .env) in its env only
+stuntkey run --all -- <command>      # ... every service in stuntkey.json
+stuntkey run <service> --no-redact -- <command>   # don't scrub the output (interactive programs)
+stuntkey run <service> --redact -- <command>      # scrub it (the default)
+stuntkey run <service> --env-file FILE -- <command>   # read keys from another .env
+stuntkey --project-dir DIR <command>   # work as if started in DIR (manifest and .env live there)
+stuntkey skill install [--project] [--yes]   # copy the agent skill to ~/.claude/skills (never overwrites unasked)
+stuntkey init [--write] [--add] [--force]   # write stuntkey.json from the project's variable names
+stuntkey setup [service ...] [--dry-run]    # connect every missing service in order (resumable)
+stuntkey setup --env-file FILE | --no-browser | --clipboard | --allow-clipboard-history
+stuntkey status [--json] [--max-age DAYS] [--env-file FILE]   # where keys live, how old
+stuntkey export <service> --to github|vercel [--repo OWNER/REPO] [--environment NAME] [--overwrite] [--yes]
+stuntkey about                       # who made it and how to check it is the real one
+stuntkey allow-agent <service>       # your one-time yes (terminal route; the normal way is the window the server shows)
+stuntkey allow-agent <service> --env-file .env.local   # let the agent write to this .env-style file (default: .env only; terminal route only)
+stuntkey setup-agent claude-code|claude-desktop|cursor|codex|gemini [--write]   # the MCP entry, with this Python's absolute path
+stuntkey skill install --for cursor|codex|gemini|all   # the rules file for that client (marked block, never overwrites yours)
+stuntkey mcp --default-store keychain   # where agent-captured keys go (default: the keychain when there is one; install and setup-agent write it)
+stuntkey allow-agent <service> --allow-clipboard-history   # ... and accept Windows' clipboard history (terminal route only; with a window, turn history off)
+stuntkey allow-agent --list | --revoke [service]   # what is allowed in this project / take it back
+stuntkey doctor-recipes [service ...] [--json] [--timeout S] [--my-recipes]   # have recipe addresses rotted?
+stuntkey connect <service> --allow-clipboard-history   # keep copy-and-go even if Windows keeps a history
+stuntkey rotate <service>            # replace a stored key
+stuntkey panic <service> [--dry-run] [--env-file FILE] [--no-browser]   # leaked key: revoke (API or page), get a new one, find the old one (terminal only)
+stuntkey forget <service>            # remove the key: OS keychain entry + .env line(s)
+stuntkey add                         # capture a new service recipe interactively
+stuntkey find <query>                # find free public APIs for a task
+stuntkey find <query> --category <name>   # only that category (part of its name)
+stuntkey find <query> --refresh      # download the directory again now
+stuntkey mcp                         # stdio MCP server (for Claude Code)
+stuntkey proxy -- <command>          # run a program whose SDK talks to a local stuntkey address (OPENAI/ANTHROPIC/GROQ/TOGETHER_BASE_URL); its *_API_KEY is a throwaway password
+stuntkey proxy --print-env           # print those variables for a tool you start yourself
+stuntkey caps show                   # spending limits per key and today's usage
+stuntkey caps set <service> --calls-session N --calls-day N --tokens-day N   # limit a key (counted across every program)
+stuntkey caps set <service> --clear  # remove that key's limits
+stuntkey stop | resume               # kill switch for every brokered and proxied call (resume asks you)
+stuntkey policy show | approve       # stuntkey.policy: allowed methods and paths per service; a new or changed file needs your approval
+stuntkey scan --no-mcp               # skip the AI tools' MCP server configs (scanned by default)
+stuntkey scan --bundle dist/|https://your-app.com   # secret keys a website ships to every visitor
+stuntkey wrap <client> <server> [--file CONFIG] [--dry-run]   # move an MCP server's key into the keychain; it then starts through `stuntkey run`
+stuntkey wrap --all --dry-run        # preview every MCP server
+stuntkey wrap <client> <server> --undo   # put the old settings back
 ```
 
-Output can be piped (`oathkey list | head -1`): when the reader
+Output can be piped (`stuntkey list | head -1`): when the reader
 stops early the command ends quietly with exit status 1 — no traceback,
 no "Exception ignored" noise at exit. On Windows Python reports that
 closed pipe as a plain `OSError` 22 instead of `BrokenPipeError` (a
@@ -430,7 +475,7 @@ every command and for the MCP server.
 ## A connect, annotated
 
 ```bash
-$ oathkey connect stripe
+$ stuntkey connect stripe
 
   Connect Stripe  (key opens in your browser)        # 1. your browser opens
                                                      #    the exact key page
@@ -460,7 +505,7 @@ The validation preview is the security hinge: you see exactly where the
 key will be sent, and the recipe must use `https://` for both the key page
 and the validation URL (a plain-`http://` recipe is rejected). If the
 validation URL belongs to a **different owner** than the key page,
-`oathkey` stops and requires you to type `yes` — anything else aborts,
+`stuntkey` stops and requires you to type `yes` — anything else aborts,
 and no key is ever asked for or sent:
 
 ```bash
@@ -489,7 +534,7 @@ genuinely keep their API on a second domain (Anthropic's console is
 their **built-in** recipes name that host in `validate.trusted_hosts`
 and connect without a prompt, with a one-line note. Only recipes shipped
 inside the package get that shortcut — a recipe from
-`~/.oathkey/recipes` (yours, or one somebody sent you) always prompts
+`~/.stuntkey/recipes` (yours, or one somebody sent you) always prompts
 when the domains differ, whatever it claims.
 
 Which names count as "anyone can register a sub-domain here" is a **compact
@@ -536,7 +581,7 @@ or any other field a space of another width or a joiner is refused too,
 and so is a joiner at the start or the end of a text, or next to a blank
 or another joiner. An emoji built with tag characters (the flag of
 England) is refused. What is unassigned is up to the Unicode tables of
-the Python that runs `oathkey`: Python 3.10 knows Unicode 13, so an
+the Python that runs `stuntkey`: Python 3.10 knows Unicode 13, so an
 emoji from a later version passes on Python 3.13 and not on 3.10.
 
 In the transcript above the key is shown as `sk-…` — in reality it is
@@ -565,7 +610,7 @@ is sent straight from your machine. Cloud coding agents, sandboxes and
 some company proxies add their own credentials to outgoing requests, so
 the API can answer "valid" for any key, even a made-up one. If a key you
 know is wrong gets accepted, that is the likely reason: run
-`oathkey connect` in a terminal on your own computer instead.
+`stuntkey connect` in a terminal on your own computer instead.
 
 ## Where the key goes
 
@@ -614,7 +659,7 @@ which a shell still runs `$(...)` and backticks and expands `$VAR`. A key
 made only of letters, digits and `_ . + / = : -` was never quoted, so
 those are unaffected. Double-quoted values are still read, and such a
 line is rewritten in the new form the next time its key is saved:
-`oathkey rotate <service>` does it, and nothing else in the file
+`stuntkey rotate <service>` does it, and nothing else in the file
 moves.
 
 If the same variable is set more than once in the file, the **last**
@@ -657,7 +702,7 @@ it — re-save it as UTF-8).
   actually succeeded; otherwise it says `could not restrict ACL` so you
   know the file has the folder's default permissions.
 
-`oathkey forget <service>` undoes a connect: it deletes the keychain
+`stuntkey forget <service>` undoes a connect: it deletes the keychain
 entry (when this OS has a keychain) and removes the `ENV_VAR=` line from
 `.env` (`--env-file` to point elsewhere), and says what it removed. If
 the variable is set more than once, every one of those lines goes —
@@ -686,12 +731,12 @@ uses what it ships with, and the key never goes through `argv`:
 
 | OS      | backend                                                            | how |
 |---------|--------------------------------------------------------------------|-----|
-| macOS   | login Keychain, via the `security` command                         | commands fed over stdin (`security -i`), generic password `oathkey:<service>` / account `<ENV_VAR>` |
-| Windows | Credential Manager (Windows Vault), via `ctypes` → `advapi32` `CredWriteW`/`CredReadW`/`CredDeleteW` | generic credential `oathkey:<service>`, persisted for the local machine, UTF-16-LE blob like `cmdkey` |
-| Linux   | Secret Service (GNOME Keyring / KWallet) via `secret-tool`, when installed | key on stdin; attributes `service=oathkey account=<ENV_VAR> slug=<service>` |
+| macOS   | login Keychain, via the `security` command                         | commands fed over stdin (`security -i`), generic password `stuntkey:<service>` / account `<ENV_VAR>` |
+| Windows | Credential Manager (Windows Vault), via `ctypes` → `advapi32` `CredWriteW`/`CredReadW`/`CredDeleteW` | generic credential `stuntkey:<service>`, persisted for the local machine, UTF-16-LE blob like `cmdkey` |
+| Linux   | Secret Service (GNOME Keyring / KWallet) via `secret-tool`, when installed | key on stdin; attributes `service=stuntkey account=<ENV_VAR> slug=<service>` |
 | anything else, or the tool is missing | — | no keychain: asks `[y/N]` before using the `.env` file (nothing is saved without a yes, or with no terminal) |
 
-A keychain-stored key is consumed with `oathkey run <service> --
+A keychain-stored key is consumed with `stuntkey run <service> --
 <command>`: the key is read back and placed in that one child process's
 environment, never printed. (Your app does not need to change — it
 still reads `$STRIPE_SECRET_KEY`.) Without a keychain backend `run`
@@ -723,14 +768,14 @@ file the link points to.
 
 ## Find public APIs
 
-oathkey is also a discovery front door. `oathkey find` searches the public
+stuntkey is also a discovery front door. `stuntkey find` searches the public
 APIs directory (~2,100 free APIs, cached locally for 7 days):
 
 ```bash
-oathkey find "weather" --auth No        # only keyless APIs
-oathkey find "crypto price" --limit 5
-oathkey find "facts" --category animals # only that category
-oathkey find "weather" --refresh        # download the directory again now
+stuntkey find "weather" --auth No        # only keyless APIs
+stuntkey find "crypto price" --limit 5
+stuntkey find "facts" --category animals # only that category
+stuntkey find "weather" --refresh        # download the directory again now
 ```
 
 `--auth` takes the directory's own word (`No`, `apiKey`, `OAuth`, ...) and
@@ -751,7 +796,7 @@ APIs needing a key point straight back at the tunnel:
     Weatherstack [apiKey]
       Real-time weather
       https://weatherstack.com/  (Weather)
-      needs a key — save its recipe with `oathkey add`.
+      needs a key — save its recipe with `stuntkey add`.
 ```
 
 ### MCP co-work skills
@@ -761,15 +806,15 @@ discovers free APIs instead of improvising or reaching for paid services:
 
 - `find_public_apis {query, auth?, category?, limit?}` — search the directory
 - `get_public_api {name}` — details plus wiring: no-auth APIs get a
-  call-it-directly note; `apiKey` APIs get the exact `oathkey add` +
-  `oathkey connect` flow (the agent never asks the user to paste a key)
+  call-it-directly note; `apiKey` APIs get the exact `stuntkey add` +
+  `stuntkey connect` flow (the agent never asks the user to paste a key)
 
 No secrets ever pass through MCP — only public how-to.
 
 ## Copy-and-go, two-value keys, every kind of check (0.4.0)
 
 **Copy-and-go** (`--clipboard`): instead of pasting, click the vendor's own
-**Copy** button. oathkey notices the new, key-shaped value on the
+**Copy** button. stuntkey notices the new, key-shaped value on the
 clipboard, takes it and **empties the clipboard**, then validates and
 stores it as usual; nothing is typed, pasted or shown. It looks only while
 it is waiting for a key, takes only a value that matches the field's
@@ -778,13 +823,13 @@ spaces, 8-4096 visible characters, different from what was already on the
 clipboard), and falls back to the hidden prompt after 3 minutes or when no
 clipboard tool exists (Windows needs nothing; macOS uses `pbpaste`; Linux
 `wl-paste`, `xclip` or `xsel`). Windows clipboard history (Win+V) and
-clipboard managers can keep their own copy, which oathkey cannot clear.
+clipboard managers can keep their own copy, which stuntkey cannot clear.
 
 **Zero-copy** (`--via-cli`): for a built-in recipe whose vendor has a CLI
-with a browser sign-in (`github` uses `gh auth login --web`), oathkey
+with a browser sign-in (`github` uses `gh auth login --web`), stuntkey
 runs that sign-in and reads the token from the CLI, then validates and
 stores it. The programs a recipe may run are fixed in the code
-(`recipes.CLI_PROGRAMS`); a recipe from `~/.oathkey` cannot use this.
+(`recipes.CLI_PROGRAMS`); a recipe from `~/.stuntkey` cannot use this.
 
 **Two-value credentials**: a recipe may list several `fields` (an App ID
 and a secret, an access key and its secret). Each is collected hidden (or
@@ -809,8 +854,8 @@ one it never checks, or puts its token endpoint on `http://`.
 Agents (and humans) forget per-service key flows and improvise imprecise
 steps. Recipes are the memory: plain JSON files with the key URL, the
 exact click path, scopes, and a validation endpoint. Teach it once with
-`oathkey add`, use it forever — and Claude Code can pull the exact recipe via
-`oathkey mcp` instead of guessing.
+`stuntkey add`, use it forever — and Claude Code can pull the exact recipe via
+`stuntkey mcp` instead of guessing.
 
 Ships with 36 recipes inside the package (so `pip install` carries
 them), each checked against the provider's own docs for the key page,
@@ -836,9 +881,9 @@ answers HTTP 200 even to a bad token), Linear (GraphQL needs a POST
 body), Shopify (per-store URL), Perplexity/Exa/Serper (no free GET
 endpoint), Fireworks (the documented list-models URL is per account).
 
-`oathkey add` walks you through capturing your own (Headroom, RPX,
-Ponytail…); those are saved to `~/.oathkey/recipes/`
-(`%USERPROFILE%\.oathkey\recipes\` on Windows) and override a
+`stuntkey add` walks you through capturing your own (Headroom, RPX,
+Ponytail…); those are saved to `~/.stuntkey/recipes/`
+(`%USERPROFILE%\.stuntkey\recipes\` on Windows) and override a
 built-in recipe with the same slug. `--recipes-dir` writes elsewhere.
 A recipe file may be saved with Windows (CRLF) line ends and a UTF-8
 byte-order mark, as Windows PowerShell and older Notepad write them: a
@@ -901,8 +946,8 @@ the job that opens or updates a single issue) runs it. To fix a recipe, see
 Add to Claude Code (`claude mcp add`) or `~/.claude.json`:
 
 ```json
-{ "mcpServers": { "oathkey": {
-  "command": "python", "args": ["-m", "oathkey", "mcp"] } } }
+{ "mcpServers": { "stuntkey": {
+  "command": "python", "args": ["-m", "stuntkey", "mcp"] } } }
 ```
 
 (`python` is the Windows launcher's name; on macOS/Linux use whatever
@@ -912,7 +957,7 @@ runs your Python 3.) Eight tools: `list_services`, `get_recipe`,
 with a saved key: service, method, path, optional `query_json` and `body_json`;
 it reads the OS keychain only, and anything but a GET asks you first). The recipe tells the agent the
 exact steps and ends with: call `capture_key` (or, if that is unavailable,
-ask the person to run `oathkey connect <service>`) — never ask the user
+ask the person to run `stuntkey connect <service>`) — never ask the user
 to paste the key into chat.
 
 ### Agent-driven capture (`capture_key`, experimental)
@@ -964,16 +1009,16 @@ Rules that make this safe enough to allow:
     your screen and presses Yes, and a browser tool that reads the key field.
 - **Who is named, and who made the tool.** The window says which AI program is asking
   ("Claude Code", "Cursor", "Codex" ...). That name is what the program **reports
-  about itself** when it connects (the MCP `clientInfo.name`); oathkey cannot prove
+  about itself** when it connects (the MCP `clientInfo.name`); stuntkey cannot prove
   it, so it is a label, not an identity check. An unknown name is shown cleaned (plain
   letters, 30 characters) and a missing one as "An AI program". The first line of
   every window says the tool is *free key-safe tool, made by Calas Automations,
   installed on this computer*. To check that this really is the program you installed:
-  `oathkey about`, `pip show oathkey` (author Calas Automations Inc.), the
-  package page https://pypi.org/project/oathkey/ and the source
-  https://github.com/calasdan-sketch/oathkey.
+  `stuntkey about`, `pip show stuntkey` (author Calas Automations Inc.), the
+  package page https://pypi.org/project/stuntkey/ and the source
+  https://github.com/calasdan-sketch/stuntkey.
 - **A closed window is not a No.** Only the No button, where the operating system lets
-  oathkey tell (Windows, macOS, Linux zenity), counts as a refusal. A window that
+  stuntkey tell (Windows, macOS, Linux zenity), counts as a refusal. A window that
   closes by itself or is closed without choosing is reported as expired/closed and
   can simply be asked again; on kdialog or an old zenity, where "No" and "closed" look
   the same, the answer is passed on as a No but never remembered for 10 minutes.
@@ -989,12 +1034,12 @@ Rules that make this safe enough to allow:
   either (the key passes through them). The cost: a Homebrew or Nix copy, which
   your user owns, is refused — and the result **says so** (for example *found
   xclip at /opt/homebrew/bin/xclip but it is not a trusted install ... use
-  `oathkey connect`*) instead of failing quietly.
-- **`oathkey allow-agent <service>`** in a terminal is the fallback **only
+  `stuntkey connect`*) instead of failing quietly.
+- **`stuntkey allow-agent <service>`** in a terminal is the fallback **only
   where no window can be shown** (SSH, headless), or when the server is started
-  with `OATHKEY_NO_WINDOW=1`. On a computer that can show a window the server
+  with `STUNTKEY_NO_WINDOW=1`. On a computer that can show a window the server
   does not use it. It is **advisory**: it is kept in
-  `~/.oathkey/agent-consent.json` (in a 0700 folder) with an HMAC and a
+  `~/.stuntkey/agent-consent.json` (in a 0700 folder) with an HMAC and a
   counter (an old copy of the file does not verify). The signing secret is in
   Windows DPAPI, the macOS keychain or the Linux Secret Service; where those work
   they are the authority and a file is never preferred over them; otherwise it is
@@ -1002,7 +1047,7 @@ Rules that make this safe enough to allow:
   that can write files is accepted on this route, and a program running as you
   can still read that secret or fake a terminal, so this route proves little.
   An agent that can edit your MCP client's config can also set
-  `OATHKEY_NO_WINDOW=1` for the server, so that switch is a convenience, not a lock. A file that does not verify counts as
+  `STUNTKEY_NO_WINDOW=1` for the server, so that switch is a convenience, not a lock. A file that does not verify counts as
   no consent. The hook's rules about these files (including wildcards such as
   `~/.safe*/*`) are a speed bump, not a lock; a known false positive is that a word such as
   `ls .s*` is refused too, since it could expand to the folder.
@@ -1042,7 +1087,7 @@ is not an object, or a missing or wrongly typed required argument gets
 `-32602 Invalid params` - never a crash or `-32603` - after which the server
 simply carries on. (A tool-level miss, such as a service that has no recipe, is
 an ordinary result with `isError`.) If standard input or standard output is
-closed (`oathkey mcp >&-`; `pythonw` on Windows) there is no client to talk
+closed (`stuntkey mcp >&-`; `pythonw` on Windows) there is no client to talk
 to: one `error:` line on stderr and exit status 2, before any request is read,
 not a traceback.
 
@@ -1086,7 +1131,7 @@ not a traceback.
   one leeway: a space of another width and a joiner between two visible
   characters are text in a name, a step or a scope - the list of what is
   refused is in *A connect, annotated*.)
-- The only POST oathkey sends is the OAuth2 token request, to the
+- The only POST stuntkey sends is the OAuth2 token request, to the
   `token_url` the recipe names and shown before anything is asked for;
   it and a `query` request follow no redirect. Copy-and-go empties the
   clipboard as soon as it takes a value.
@@ -1143,14 +1188,14 @@ the package metadata and one version number everywhere, output into a pipe that 
 real thing, and the different error Windows gives, simulated), and
 never-log assertions on every output path. Tests point
 `HOME`/`USERPROFILE`/`APPDATA` at a throwaway directory, so they never
-read your real `~/.oathkey` or `.env`.
+read your real `~/.stuntkey` or `.env`.
 
 Windows 11 is a first-class target: the wire format of the MCP server
 is UTF-8 bytes regardless of console code page, console output is
 reconfigured to replace unencodable characters instead of crashing, and
 every text file is opened as UTF-8.
 
-## Scope / limits (v0.8.0)
+## Scope / limits (v0.9.0)
 
 - `scan` finds keys by their shape. It misses a key with no recognisable
   prefix under a name that does not end in KEY, TOKEN, SECRET or PASSWORD, and
@@ -1193,7 +1238,7 @@ every text file is opened as UTF-8.
 - Recipe catalog is curated manually — verify a new service's key URL and
   validation endpoint before trusting it. Provider dashboards move:
   if a key page URL redirects, follow it and send a fix.
-- `forget` removes what oathkey wrote and what a killed write left
+- `forget` removes what stuntkey wrote and what a killed write left
   next to it; it does not find other copies of the file (editor backups,
   version-control history), and it names - rather than deletes - another
   hard link to the `.env` file, exiting 1 because the key is still there.
@@ -1220,13 +1265,13 @@ every text file is opened as UTF-8.
 
 ## Using a key without holding it (call, serve, remote)
 
-These commands let an AI use a saved key while only oathkey ever holds it.
+These commands let an AI use a saved key while only stuntkey ever holds it.
 
-- `oathkey call SERVICE METHOD PATH [--query name=value] [--data JSON] [--json]`: call a service's API; the key is added for you and hidden from the output.
-- `oathkey serve [--port 8787]`: a local web door for tools that do not speak MCP.
-- `oathkey remote SERVICE user@host [--as USER] [--ssh-arg ARG] -- COMMAND`: run a command on another machine with the key sent over ssh stdin.
-- `oathkey deploy user@host --service NAME --dir FOLDER [--as USER] [--then COMMAND]`: trust the server, send the key, `git pull`, optionally restart.
-- `oathkey audit verify|show|reset [--last N]`: check the activity log has not been tampered with.
-- `oathkey selftest [--verbose]`: attack oathkey with a made-up key; `--verbose` lists every attack.
-- `oathkey scan-git [--staged] [--install-hook]`: look through git history, or what is about to be committed, for keys.
-- `oathkey get SERVICE [--no-clipboard]`: one command: open the key page, take the key from your copy, test it, save it in the keychain.
+- `stuntkey call SERVICE METHOD PATH [--query name=value] [--data JSON] [--json]`: call a service's API; the key is added for you and hidden from the output.
+- `stuntkey serve [--port 8787]`: a local web door for tools that do not speak MCP.
+- `stuntkey remote SERVICE user@host [--as USER] [--ssh-arg ARG] -- COMMAND`: run a command on another machine with the key sent over ssh stdin.
+- `stuntkey deploy user@host --service NAME --dir FOLDER [--as USER] [--then COMMAND]`: trust the server, send the key, `git pull`, optionally restart.
+- `stuntkey audit verify|show|reset [--last N]`: check the activity log has not been tampered with.
+- `stuntkey selftest [--verbose]`: attack stuntkey with a made-up key; `--verbose` lists every attack.
+- `stuntkey scan-git [--staged] [--install-hook]`: look through git history, or what is about to be committed, for keys.
+- `stuntkey get SERVICE [--no-clipboard]`: one command: open the key page, take the key from your copy, test it, save it in the keychain.

@@ -4,7 +4,7 @@ labels: [bug]
 body:
   - type: markdown
     attributes:
-      value: "Never paste an API key here. `oathkey doctor` output is safe to share."
+      value: "Never paste an API key here. `stuntkey doctor` output is safe to share."
   - type: textarea
     id: what
     attributes:
@@ -14,7 +14,7 @@ body:
   - type: textarea
     id: doctor
     attributes:
-      label: Output of `oathkey doctor` and `oathkey --version`
+      label: Output of `stuntkey doctor` and `stuntkey --version`
       render: text
   - type: dropdown
     id: os

@@ -5,7 +5,7 @@ import sys
 import unittest
 from urllib.parse import quote
 
-from oathkey import remote, scrub
+from stuntkey import remote, scrub
 
 # built at run time so this file never contains a key-shaped string
 SECRET = "sk" + "_live_" + "A1b2C3d4E5f6G7h8"

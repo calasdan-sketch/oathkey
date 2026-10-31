@@ -9,8 +9,8 @@ success while
 - a hard link to the file (a `.env.bak` made with `ln`) kept the old
   contents, because rewriting a file by rename never touches its other names.
 
-Now `forget` removes the first kind (they are oathkey's own) and names the
-second kind without deleting it (it is not oathkey's), exiting 1 because
+Now `forget` removes the first kind (they are stuntkey's own) and names the
+second kind without deleting it (it is not stuntkey's), exiting 1 because
 the key is not gone.
 
 Round-2 panel (SEA-3): with a `.env` that is a symbolic link `forget` removed
@@ -31,9 +31,9 @@ import unittest
 from unittest import mock
 
 import _isolation  # noqa: F401  (fake HOME/USERPROFILE for the whole run)
-from oathkey import cli as cli_mod
-from oathkey import keychain as keychain_mod
-from oathkey import store as store_mod
+from stuntkey import cli as cli_mod
+from stuntkey import keychain as keychain_mod
+from stuntkey import store as store_mod
 
 KEY = "sk-forget-me-7731"
 NO_KEYCHAIN = types.SimpleNamespace(detect_backend=lambda: None,
@@ -75,7 +75,7 @@ def forget(env, **kw):
 KILLED_WRITER = """
 import os, signal, sys
 sys.path.insert(0, sys.argv[1])
-from oathkey import store
+from stuntkey import store
 os.replace = lambda *a, **k: os.kill(os.getpid(), signal.SIGKILL)
 store.store_key_result("ACME_API_KEY", sys.argv[3], sys.argv[2])
 """
@@ -376,7 +376,7 @@ class TestForgetSaysWhatItDidBeforeWhatItCouldNot(unittest.TestCase):
         self.assertLess(text.index("removed " + self.ENTRY),
                         text.index("could not rewrite"))
         self.assertIn("link", text)
-        self.assertIn("oathkey forget acme", text)    # the way on
+        self.assertIn("stuntkey forget acme", text)    # the way on
         self.assertNotIn("forgot", text)                  # it is not done
         self.assertNotIn(KEY, text)
         # nothing else was touched: the link and the file it points to
@@ -506,7 +506,7 @@ esac
                          FAKE_SECRETS=secrets,
                          PYTHONPATH=_isolation.REPO)
         proc = subprocess.run(
-            [sys.executable, "-m", "oathkey", "forget", "github",
+            [sys.executable, "-m", "stuntkey", "forget", "github",
              "--env-file", env], capture_output=True, env=child_env,
             cwd=new_folder(), timeout=120)
         text = proc.stdout.decode("utf-8", "replace")

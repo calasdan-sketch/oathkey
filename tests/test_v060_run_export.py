@@ -14,12 +14,12 @@ import urllib.parse
 from unittest import mock
 
 import _isolation  # noqa: F401
-from oathkey import cli as cli_mod
-from oathkey import clipboard as clipboard_mod
-from oathkey import export as export_mod
-from oathkey import keychain as keychain_mod
-from oathkey import recipes as recipes_mod
-from oathkey import redact, runner
+from stuntkey import cli as cli_mod
+from stuntkey import clipboard as clipboard_mod
+from stuntkey import export as export_mod
+from stuntkey import keychain as keychain_mod
+from stuntkey import recipes as recipes_mod
+from stuntkey import redact, runner
 
 CAT = recipes_mod.load_recipes(recipes_mod.RECIPES_DIR)
 KEY = "sk_live_CANARY9f8e7d6c5b4a3928"
@@ -91,8 +91,8 @@ class TestRedactorVariants(unittest.TestCase):
     def test_unrelated_text_untouched(self):
         self.assertEqual(redact.Redactor([KEY]).text("hello world"), "hello world")
 
-    def test_honest_limit_reversed_value_is_not_caught(self):
-        self.assertIn(KEY[::-1], redact.Redactor([KEY]).text(KEY[::-1]))
+    def test_reversed_value_is_caught_since_the_merge_with_scrub(self):
+        self.assertEqual(redact.Redactor([KEY]).text(KEY[::-1]), "[REDACTED]")
 
     def test_honest_limit_partial_print_is_not_caught(self):
         self.assertIn(KEY[:10], redact.Redactor([KEY]).text(KEY[:10]))
@@ -288,7 +288,7 @@ class TestRunCli(unittest.TestCase):
         d = proj(f"GROQ_API_KEY={KEY}\n")
         # stdout of the child goes to the real fd via .buffer, so use a real process
         p = subprocess.run([sys.executable, "-c",
-                            "import sys; from oathkey.cli import main; sys.exit(main(sys.argv[1:]))",
+                            "import sys; from stuntkey.cli import main; sys.exit(main(sys.argv[1:]))",
                             "run", "groq", "--", "sh", "-c", 'echo "k=$GROQ_API_KEY"'],
                            cwd=d, capture_output=True, text=True,
                            env=dict(os.environ, PYTHONPATH=_isolation.REPO), timeout=60)
@@ -298,7 +298,7 @@ class TestRunCli(unittest.TestCase):
     def test_no_redact_is_refused_when_output_is_a_pipe(self):
         d = proj(f"GROQ_API_KEY={KEY}\n")
         p = subprocess.run([sys.executable, "-c",
-                            "import sys; from oathkey.cli import main; sys.exit(main(sys.argv[1:]))",
+                            "import sys; from stuntkey.cli import main; sys.exit(main(sys.argv[1:]))",
                             "run", "--no-redact", "groq", "--", "sh", "-c", 'echo "k=${GROQ_API_KEY%%_*}"'],
                            cwd=d, capture_output=True, text=True,
                            env=dict(os.environ, PYTHONPATH=_isolation.REPO), timeout=60)
@@ -322,10 +322,10 @@ class TestRunCli(unittest.TestCase):
 
     def test_all_injects_every_manifest_service(self):
         d = proj("GROQ_API_KEY=" + KEY + "\nTAVILY_API_KEY=" + KEY[::-1] + "\n")
-        with open(os.path.join(d, "oathkey.json"), "w") as f:
+        with open(os.path.join(d, "stuntkey.json"), "w") as f:
             json.dump({"version": 1, "services": [{"service": "groq"}, {"service": "tavily"}]}, f)
         p = subprocess.run([sys.executable, "-c",
-                            "import sys; from oathkey.cli import main; sys.exit(main(sys.argv[1:]))",
+                            "import sys; from stuntkey.cli import main; sys.exit(main(sys.argv[1:]))",
                             "run", "--all", "sh", "--", "-c", 'echo "$GROQ_API_KEY $TAVILY_API_KEY"'],
                            cwd=d, capture_output=True, text=True,
                            env=dict(os.environ, PYTHONPATH=_isolation.REPO), timeout=60)
@@ -335,17 +335,17 @@ class TestRunCli(unittest.TestCase):
     def test_all_without_a_manifest(self):
         code, _, err = self.run_cli(proj(), "run", "--all", "true")
         self.assertEqual(code, 1)
-        self.assertIn("oathkey.json", err)
+        self.assertIn("stuntkey.json", err)
 
     def test_a_manifest_env_file_is_used(self):
         d = proj()
         os.makedirs(os.path.join(d, "cfg"))
         with open(os.path.join(d, "cfg", ".env"), "w") as f:
             f.write(f"GROQ_API_KEY={KEY}\n")
-        with open(os.path.join(d, "oathkey.json"), "w") as f:
+        with open(os.path.join(d, "stuntkey.json"), "w") as f:
             json.dump({"version": 1, "env_file": "cfg/.env", "services": [{"service": "groq"}]}, f)
         p = subprocess.run([sys.executable, "-c",
-                            "import sys; from oathkey.cli import main; sys.exit(main(sys.argv[1:]))",
+                            "import sys; from stuntkey.cli import main; sys.exit(main(sys.argv[1:]))",
                             "run", "groq", "--", "sh", "-c", 'test -n "$GROQ_API_KEY"'],
                            cwd=d, capture_output=True, text=True,
                            env=dict(os.environ, PYTHONPATH=_isolation.REPO), timeout=60)
@@ -459,7 +459,7 @@ class TestExportFlow(unittest.TestCase):
     def test_no_stored_key(self):
         code, text = self.go("", lambda *a, **k: self.fail("must not run"))
         self.assertEqual(code, 1)
-        self.assertIn("oathkey connect groq", text)
+        self.assertIn("stuntkey connect groq", text)
 
     def test_asks_first_without_yes_and_declines_by_default(self):
         d = proj(f"GROQ_API_KEY={KEY}\n")
@@ -551,8 +551,8 @@ class TestExportWithAFakeGh(unittest.TestCase):
         d = proj(f"GROQ_API_KEY={KEY}\n")
         env = dict(os.environ, PATH=bindir + os.pathsep + os.environ["PATH"], PYTHONPATH=_isolation.REPO)
         p = subprocess.run([sys.executable, "-c",
-                            "import sys; from oathkey import dialog; dialog.confirm = lambda *a, **k: True; "
-                            "from oathkey.cli import main; sys.exit(main(sys.argv[1:]))",
+                            "import sys; from stuntkey import dialog; dialog.confirm = lambda *a, **k: True; "
+                            "from stuntkey.cli import main; sys.exit(main(sys.argv[1:]))",
                             "export", "groq", "--to", "github", "--repo", "me/app", "--yes"],
                            cwd=d, capture_output=True, text=True, env=env, timeout=60)
         self.assertEqual(p.returncode, 0, p.stdout + p.stderr)

@@ -15,11 +15,11 @@ import unittest
 from unittest import mock
 
 import _isolation  # noqa: F401
-from oathkey import cli as cli_mod
-from oathkey import hook as hook_mod
-from oathkey import recipes as recipes_mod
-from oathkey import scan as scan_mod
-from oathkey import validate as validate_mod
+from stuntkey import cli as cli_mod
+from stuntkey import hook as hook_mod
+from stuntkey import recipes as recipes_mod
+from stuntkey import scan as scan_mod
+from stuntkey import validate as validate_mod
 
 from test_scan import (ANTHROPIC, CATALOG, GENERIC, OPENAI, FakeValidate, NoNetwork,
                        args_for, run_cli, scan_text, write)
@@ -442,7 +442,7 @@ class TestTrailingPunctuation(NoNetwork):
 class TestHookNeverRunsWhatItReads(Settings):
     def test_status_does_not_execute_the_command_in_a_cloned_settings_file(self):
         marker = os.path.join(self.dir, "pwned")
-        evil = f"touch {marker}; oathkey hook check"
+        evil = f"touch {marker}; stuntkey hook check"
         self.put({"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [
             {"type": "command", "command": evil}]}]}})
         args = cli_mod._build_parser().parse_args(["hook", "status", "--settings", self.path])
@@ -463,7 +463,7 @@ class TestHookNeverRunsWhatItReads(Settings):
         hook_mod.cmd_hook(args, out=out, err=io.StringIO(),
                           run=lambda argv, **kw: ran.append(argv) or ok_run(argv))
         self.assertFalse(os.path.exists(marker))
-        self.assertEqual(ran, [["/bin/sh", "-c", "/opt/bin/oathkey hook check"]])
+        self.assertEqual(ran, [["/bin/sh", "-c", "/opt/bin/stuntkey hook check"]])
         self.assertIn("not the one this installation would write", out.getvalue())
 
     def test_self_test_never_uses_a_shell_string_for_a_file_command(self):
@@ -477,18 +477,18 @@ class TestHookNeverRunsWhatItReads(Settings):
         self.assertIsInstance(seen["argv"], list)
 
     def test_ours_means_exactly_ours(self):
-        ours = ("/opt/bin/oathkey hook check", "'/opt/my tools/oathkey' hook check",
-                '"C:\\Python\\Scripts\\oathkey.exe" hook check',
-                "/usr/bin/python3 -I -m oathkey hook check")
+        ours = ("/opt/bin/stuntkey hook check", "'/opt/my tools/stuntkey' hook check",
+                '"C:\\Python\\Scripts\\stuntkey.exe" hook check',
+                "/usr/bin/python3 -I -m stuntkey hook check")
         for cmd in ours:
             self.assertTrue(hook_mod.is_ours({"type": "command", "command": cmd}), cmd)
-        not_ours = ("oathkey scan", "evil oathkey hook check",
-                    "touch x; oathkey hook check", "oathkey hook check; rm -rf ~",
-                    "/tmp/evil/run.sh oathkey hook check", "echo oathkey hook check",
-                    "python3 -m oathkey hook check", "/x/other hook check")
+        not_ours = ("stuntkey scan", "evil stuntkey hook check",
+                    "touch x; stuntkey hook check", "stuntkey hook check; rm -rf ~",
+                    "/tmp/evil/run.sh stuntkey hook check", "echo stuntkey hook check",
+                    "python3 -m stuntkey hook check", "/x/other hook check")
         for cmd in not_ours:
             self.assertFalse(hook_mod.is_ours({"type": "command", "command": cmd}), cmd)
-        self.assertFalse(hook_mod.is_ours({"command": "/opt/bin/oathkey hook check",
+        self.assertFalse(hook_mod.is_ours({"command": "/opt/bin/stuntkey hook check",
                                            "args": ["--steal"]}))
         self.assertTrue(hook_mod.is_ours({"command": "x", "statusMessage": hook_mod.MARKER}))
 
@@ -511,7 +511,7 @@ class TestOurOwnGroup(Settings):
     def test_a_shared_group_is_never_edited(self):
         shared = {"matcher": "Bash", "hooks": [
             {"type": "command", "command": "/x/audit.sh", "timeout": 5},
-            {"type": "command", "command": "/opt/bin/oathkey hook check"}]}
+            {"type": "command", "command": "/opt/bin/stuntkey hook check"}]}
         self.put({"hooks": {"PreToolUse": [shared]}})
         self.hook("install")
         groups = self.get()["hooks"]["PreToolUse"]
@@ -532,18 +532,18 @@ class TestOurOwnGroup(Settings):
 
     def test_a_new_install_path_replaces_ours_even_after_a_move(self):
         self.put({"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [
-            {"type": "command", "command": "/old/venv/bin/oathkey hook check"}]}]}})
+            {"type": "command", "command": "/old/venv/bin/stuntkey hook check"}]}]}})
         self.hook("install")
         groups = self.get()["hooks"]["PreToolUse"]
         self.assertEqual(len(groups), 1)
-        self.assertEqual(self.command_of(groups[0]["hooks"][0]), "/opt/bin/oathkey hook check")
+        self.assertEqual(self.command_of(groups[0]["hooks"][0]), "/opt/bin/stuntkey hook check")
         self.assertEqual(groups[0]["matcher"], hook_mod.MATCHER)
 
 
 # -------------------------------------------------------------- hook: 4, Windows
 
 class TestWindowsCommand(unittest.TestCase):
-    EXE = "C:\\Users\\Dan B\\AppData\\Python\\Scripts\\oathkey.exe"
+    EXE = "C:\\Users\\Dan B\\AppData\\Python\\Scripts\\stuntkey.exe"
 
     def windows(self):
         stack = contextlib.ExitStack()
@@ -563,15 +563,15 @@ class TestWindowsCommand(unittest.TestCase):
         h = hook_mod.hook_handler(shell_form=True)
         self.assertNotIn("args", h)
         self.assertEqual(h["command"],
-                         '"C:/Users/Dan B/AppData/Python/Scripts/oathkey.exe" hook check')
+                         '"C:/Users/Dan B/AppData/Python/Scripts/stuntkey.exe" hook check')
         self.assertNotIn("\\", h["command"])
         self.assertTrue(hook_mod.is_ours(h))
 
     def test_posix_stays_a_shell_string(self):
         with mock.patch.object(hook_mod, "_ON_WINDOWS", False), \
-                mock.patch.object(hook_mod, "console_script", lambda: "/opt/my tools/oathkey"):
+                mock.patch.object(hook_mod, "console_script", lambda: "/opt/my tools/stuntkey"):
             h = hook_mod.hook_handler()
-        self.assertEqual(h["command"], "'/opt/my tools/oathkey' hook check")
+        self.assertEqual(h["command"], "'/opt/my tools/stuntkey' hook check")
         self.assertNotIn("args", h)
 
     def test_the_self_test_starts_exec_form_like_claude_code_does(self):
@@ -583,7 +583,7 @@ class TestWindowsCommand(unittest.TestCase):
 
     def test_a_program_in_the_current_folder_is_never_the_hook_command(self):
         here = _isolation.mktemp()
-        name = "oathkey.exe" if os.name == "nt" else "oathkey"
+        name = "stuntkey.exe" if os.name == "nt" else "stuntkey"
         planted = os.path.join(here, name)
         with open(planted, "w") as f:
             f.write("#!/bin/sh\n")
@@ -602,14 +602,14 @@ class TestWindowsCommand(unittest.TestCase):
         real = _isolation.mktemp()
         alias = os.path.join(_isolation.mktemp(), "alias")
         os.symlink(real, alias)
-        planted = os.path.join(real, "oathkey")
+        planted = os.path.join(real, "stuntkey")
         with open(planted, "w") as f:
             f.write("#!/bin/sh\n")
         os.chmod(planted, 0o755)
         old = os.getcwd()
         os.chdir(real)
         self.addCleanup(os.chdir, old)
-        spelled_otherwise = os.path.join(alias, "oathkey")
+        spelled_otherwise = os.path.join(alias, "stuntkey")
         with mock.patch("shutil.which", lambda _n: spelled_otherwise), \
                 mock.patch.object(sys, "executable", os.path.join(_isolation.mktemp(), "python")), \
                 mock.patch("sysconfig.get_path", lambda _n: _isolation.mktemp()):
@@ -672,7 +672,7 @@ class TestBigAndBrokenInput(unittest.TestCase):
 
     def test_the_hook_program_end_to_end_with_a_big_payload(self):
         text = call("Bash", command="echo " + "a" * 1_500_000 + "; cat .env")
-        code = ("import sys; sys.path.insert(0, %r); from oathkey.cli import main; "
+        code = ("import sys; sys.path.insert(0, %r); from stuntkey.cli import main; "
                 "sys.exit(main(['hook', 'check']))" % _isolation.REPO)
         done = subprocess.run([sys.executable, "-c", code], input=text.encode(),
                               capture_output=True, timeout=60, cwd=_isolation.mktemp())

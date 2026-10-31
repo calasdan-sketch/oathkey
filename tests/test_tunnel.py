@@ -8,8 +8,8 @@ import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import _isolation  # noqa: F401  (fake HOME/USERPROFILE for the whole run)
-from oathkey import mcp as mcp_mod
-from oathkey import validate as validate_mod
+from stuntkey import mcp as mcp_mod
+from stuntkey import validate as validate_mod
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -114,7 +114,7 @@ class TestMCP(unittest.TestCase):
     def test_initialize(self):
         r = mcp_mod.handle({"jsonrpc": "2.0", "id": 1,
                             "method": "initialize", "params": {}}, CATALOG)
-        self.assertEqual(r["result"]["serverInfo"]["name"], "oathkey")
+        self.assertEqual(r["result"]["serverInfo"]["name"], "stuntkey")
 
     def test_tools_list(self):
         r = mcp_mod.handle({"jsonrpc": "2.0", "id": 2,
@@ -136,7 +136,7 @@ class TestMCP(unittest.TestCase):
                            CATALOG)
         text = r["result"]["content"][0]["text"]
         self.assertIn("https://acme.test/keys", text)
-        self.assertIn("oathkey connect acme", text)
+        self.assertIn("stuntkey connect acme", text)
 
     def test_get_recipe_unknown(self):
         r = mcp_mod.handle({"jsonrpc": "2.0", "id": 5, "method": "tools/call",
@@ -159,7 +159,7 @@ class TestMCP(unittest.TestCase):
         as cwd (wherever it is checked out), bytes on the wire, and a
         reader thread with a timeout instead of a blocking readline."""
         proc = subprocess.Popen(
-            [sys.executable, "-m", "oathkey", "mcp"],
+            [sys.executable, "-m", "stuntkey", "mcp"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             cwd=_isolation.REPO, env=dict(os.environ))
         lines: "queue.Queue[bytes]" = queue.Queue()
@@ -179,7 +179,7 @@ class TestMCP(unittest.TestCase):
         try:
             init = rpc("initialize")
             self.assertEqual(init["result"]["serverInfo"]["name"],
-                             "oathkey")
+                             "stuntkey")
             tools = rpc("tools/list", rid=2)
             self.assertEqual(len(tools["result"]["tools"]), 8)
             call = rpc("tools/call",

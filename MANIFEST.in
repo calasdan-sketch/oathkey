@@ -8,3 +8,6 @@ recursive-include .github *.yml *.md
 include docs/guide.md
 
 include SECURITY.md
+include docs/THREAT_MODEL.md
+recursive-include scripts *.py
+recursive-include packaging *.json *.js *.cmd *.yaml *.md

@@ -8,7 +8,7 @@ try:
 except ImportError:   # CI's plain unittest run has no pytest
     raise unittest.SkipTest("pytest is not installed")
 
-from oathkey import cli, remote
+from stuntkey import cli, remote
 
 GITHUB = {"service": "github", "env_var": "GITHUB_TOKEN",
           "fields": [{"env_var": "GITHUB_TOKEN", "name": "key", "label": "token"}]}

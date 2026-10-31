@@ -7,10 +7,10 @@ import tempfile
 import unittest
 from unittest import mock
 
-from oathkey import agentsetup, capture as capture_mod, cli as cli_mod
-from oathkey import clients, cmds, extras, gitscan, mcp as mcp_mod
-from oathkey import keychain as keychain_mod
-from oathkey import recipes as recipes_mod
+from stuntkey import agentsetup, capture as capture_mod, cli as cli_mod
+from stuntkey import clients, cmds, extras, gitscan, mcp as mcp_mod
+from stuntkey import keychain as keychain_mod
+from stuntkey import recipes as recipes_mod
 
 CATALOG = recipes_mod.load_recipes(recipes_mod.RECIPES_DIR)
 
@@ -55,7 +55,7 @@ class StartCommand(unittest.TestCase):
                 contextlib.redirect_stdout(buf):
             code = cmds.cmd_start({}, ".env")
         self.assertIn(code, (0, 1))
-        self.assertIn("oathkey", buf.getvalue())
+        self.assertIn("stuntkey", buf.getvalue())
         self.assertIn("No loose keys found", buf.getvalue())
 
     def test_start_through_the_cli(self):
@@ -108,8 +108,8 @@ class CapturedKeyReachesCallApi(unittest.TestCase):
             for p in fake.patches():
                 st.enter_context(p)
             st.enter_context(mock.patch.dict(os.environ, {"HOME": tmp, "USERPROFILE": tmp}))
-            st.enter_context(mock.patch("oathkey.broker.call", fake_call))
-            st.enter_context(mock.patch("oathkey.broker.AuditLog", lambda p: None))
+            st.enter_context(mock.patch("stuntkey.broker.call", fake_call))
+            st.enter_context(mock.patch("stuntkey.broker.AuditLog", lambda p: None))
             store_fn = capture_mod._default_store(recipe, os.path.join(tmp, ".env"), store)
             store_fn(var, "ghp_" + "a" * 36)
             result = mcp_mod._call_api(CATALOG, {"service": "github", "method": "GET",
@@ -151,7 +151,7 @@ class RemoteSplit(unittest.TestCase):
             seen["command"] = command
             return 0
         d = tempfile.mkdtemp()
-        with mock.patch("oathkey.remote.run_remote", fake):
+        with mock.patch("stuntkey.remote.run_remote", fake):
             code, _, _ = run_main(["--project-dir", d, "remote", "github", "u@h",
                                    "--", "git", "pull"])
         self.assertEqual(code, 0)

@@ -1,0 +1,54 @@
+{
+  "display": "Twilio",
+  "docs": "https://www.twilio.com/docs/usage/requests-to-twilio",
+  "env_var": "TWILIO_ACCOUNT_SID",
+  "fields": [
+    {
+      "env_var": "TWILIO_ACCOUNT_SID",
+      "label": "Account SID",
+      "name": "sid",
+      "pattern": "^AC[0-9a-fA-F]{32}$"
+    },
+    {
+      "env_var": "TWILIO_AUTH_TOKEN",
+      "label": "Auth Token",
+      "name": "token"
+    }
+  ],
+  "key_url": "https://console.twilio.com/",
+  "scopes": [],
+  "service": "twilio",
+  "steps": [
+    "Sign in to the Twilio Console",
+    "On the Account Dashboard, find 'Account Info'",
+    "Copy the Account SID, then click Show/Copy next to the Auth Token",
+    "Twilio prefers API keys (a key SID starting SK plus a secret) over the Auth Token for apps; this recipe checks the Account SID and Auth Token"
+  ],
+  "validate": {
+    "auth": {
+      "password_field": "token",
+      "type": "basic",
+      "username_field": "sid"
+    },
+    "expect": [
+      200
+    ],
+    "method": "GET",
+    "url": "https://api.twilio.com/2010-04-01/Accounts.json"
+  },
+  "unverified": [
+    "Auth Token format",
+    "revoke.steps (the exact Auth Token rotation clicks were not re-confirmed)"
+  ],
+  "least_privilege": {
+    "summary": "For an app, create a Twilio API key (SK...) in the Console; keep the Auth Token for emergencies."
+  },
+  "revoke": {
+    "page": "https://console.twilio.com/",
+    "steps": [
+      "Sign in to the Twilio Console and find the Auth Token under Account Info",
+      "Use the console control that replaces (rotates) the Auth Token, so the leaked one stops working",
+      "If the leaked value was an API key (SK...), delete that key instead"
+    ]
+  }
+}

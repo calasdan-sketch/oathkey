@@ -1,12 +1,91 @@
 # Changelog
 
-## Unreleased
+## 0.9.0
 
-- **New: local recipes.** A recipe with `"local": true` may use plain http, but every
-  address in it must be this computer (127.0.0.1, localhost or [::1]), so the key never
-  leaves the machine. For AI routers on your PC such as freellmapi or OmniRoute: save the
-  key with `oathkey get`, use it with `oathkey run`. `oathkey call` still only reaches
-  public https servers.
+### Renamed
+
+- **OathKey is now StuntKey.** The command, the Python package and the PyPI project
+  are `stuntkey` (formerly OathKey, and before that SafeEasyAPI). The home page is
+  https://calasautomations.com/devtools/stuntkey/ and the code moves to
+  https://github.com/calasdan-sketch/stuntkey.
+- **Your 0.8 data comes along; nothing old is deleted unless you ask.**
+  - The first run copies `~/.oathkey` to `~/.stuntkey` (only when `~/.stuntkey`
+    does not exist yet) and says so once. The old folder stays as it was.
+  - Keys saved in the keychain as `oathkey:<service>` are still found there.
+    `stuntkey migrate` copies each one to its new name, reads the copy back, and
+    never shows a key; `--remove-old` then deletes the old entries. `stuntkey
+    doctor` reminds you until it has run cleanly.
+  - An old `oathkey.json` or `oathkey.policy` is used when the new file is absent,
+    with a note.
+  - `stuntkey install` and `stuntkey hook install` find the `oathkey` MCP entry and
+    hook that 0.8 wrote, show the change, ask, and replace them (`hook install --yes`
+    does not ask). `doctor` points out any that are left. The project rules block
+    0.8 added is replaced too.
+  - The hook keeps guarding the old `~/.oathkey` folder and the old `oathkey`
+    command as well as the new ones.
+  - `pip install oathkey` (0.9.0) now installs stuntkey; the `oathkey` command says
+    "oathkey is now stuntkey" and passes the command on. The `safeeasyapi` package
+    (0.10.0) points at stuntkey too.
+- Environment variables are now `STUNTKEY_*` (for example `STUNTKEY_HOOK_ALLOW_WRITE`).
+
+### New
+
+- **Use a key from ordinary code without handing it over.** `stuntkey proxy -- CMD`
+  (or `--print-env` for a tool you start yourself) points the OpenAI, Anthropic, Groq
+  and Together SDKs at a local stuntkey address and gives them a throwaway password;
+  stuntkey adds the real key on the way out and scrubs it from the answers. No
+  certificate tricks: it only works with SDKs that let you change the base address.
+- **Spending limits and a kill switch.** `caps show|set` puts a per-key limit on calls
+  per session, calls per day and tokens per day, counted across every program that
+  uses the key. `stop` refuses every brokered and proxied call at once; `resume`
+  (asks you first) lets them through again.
+- **Route policy.** A `stuntkey.policy` file lists which methods and paths each service
+  may use. A project's file can only narrow your own, and a new or changed file is
+  obeyed only after `policy approve`. `policy show` prints what is in force.
+- **"I leaked a key": `panic <service>`.** Asks first, revokes the key (through the
+  official API for GitHub and Vercel; for others it opens the revoke page and waits),
+  gets a new one with the `get` flow, then shows where the old key is still written
+  (the project, .env files, MCP configs, git history). Terminal only, never offered to
+  an AI. Recipes can name their revoke page with the new `revoke` field, and `status`
+  now suggests `rotate` (or `panic`) when a key is past its age limit.
+- **Keys in MCP server settings.** `scan` now reads the MCP configs of Claude Desktop,
+  Claude Code, Cursor, VS Code, Windsurf, Codex, Gemini and Zed. `wrap` moves a key
+  from a server's `env` into the keychain and starts the server through `stuntkey run`;
+  `--all --dry-run` previews every server, `--undo` restores the old settings, and
+  `--file` picks a config file.
+- **Keys your website ships to visitors.** `scan --bundle dist/` or
+  `scan --bundle https://your-app.com` finds secret keys in built front-end code
+  (`VITE_`, `NEXT_PUBLIC_`, `REACT_APP_`, `EXPO_PUBLIC_` and known key formats).
+- **Local recipes.** A recipe marked `"local": true` may use plain http, but only to
+  this computer (127.0.0.1, localhost or [::1]), so the key never leaves the machine.
+  For AI routers on your PC such as freellmapi or OmniRoute.
+- **A stronger Claude Code hook.** It now blocks commands that dump the environment
+  and reads of private keys and credentials files, and after a Bash command it masks
+  stored keys (and text in a known key format) in the output before the AI sees it.
+  `hook install --project` can also add a short "use stuntkey for keys" block to the
+  project's CLAUDE.md / AGENTS.md / .cursorrules. Hook commands now start the same
+  stuntkey that installed them, so `hook install` works from `stuntkey.pyz` too.
+- **One scrubber.** Key scrubbing now goes through one shared scrubber, which also
+  catches a key written backwards or in UTF-16.
+- **Easier installs.** Each release has `stuntkey.pyz` (one file, any Python 3.10+)
+  and a Windows portable zip. winget manifests (`Calas.StuntKey`) and an
+  `npx stuntkey` package are prepared. `start --simple` walks people who build with
+  Lovable, Bolt, Replit or Vercel through it one plain question at a time, and
+  `install` ends by showing which AI tools are connected.
+- **Agent Leak Benchmark** (`python -m leakbench`): 61 ways an AI coding agent can
+  expose a key. With no protection 54 leak; with `stuntkey-full` 58 are stopped (46
+  blocked, 12 masked) and 3 still leak: scripts the AI writes that print a secret
+  when they are run later.
+- **Trust kit.**
+  - docs/THREAT_MODEL.md: what stuntkey protects, from whom, and where it stops.
+  - SECURITY.md: report privately by GitHub advisory or security@calasautomations.com;
+    90-day disclosure; security reports are never closed as stale; supported versions.
+  - `selftest` and `doctor` print a beta notice.
+  - README: a simpler first path (get, install, doctor), how SDK code works today, how
+    the permission windows behave, and what stuntkey does not do.
+  - CONTRIBUTING: a recipe template and how to submit community recipes.
+  - Releases publish build provenance attestations, a SHA256SUMS file and a GitHub
+    release; actions are pinned by commit SHA; an OpenSSF Scorecard workflow was added.
 
 ## 0.8.0
 

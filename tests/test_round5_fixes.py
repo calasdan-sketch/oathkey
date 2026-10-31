@@ -17,7 +17,7 @@
    coding agents and proxies can inject credentials and make any key "valid".
 8  packaging metadata (classifiers, keywords, project URLs) and one version:
    __version__, pyproject, the MCP serverInfo and both User-Agents agree.
-9  `oathkey ... | head -1` (a closed pipe) ends quietly: no traceback,
+9  `stuntkey ... | head -1` (a closed pipe) ends quietly: no traceback,
    no "Exception ignored" at exit, no exit status 120.
 9b on Windows a closed pipe is not a BrokenPipeError: the flush (or, with
    `python -u`, print() itself) raises a plain OSError(EINVAL). That is
@@ -47,14 +47,14 @@ from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
 import _isolation
-from oathkey import __version__
-from oathkey import cli as cli_mod
-from oathkey import connect as connect_mod
-from oathkey import mcp as mcp_mod
-from oathkey import publicapis as publicapis_mod
-from oathkey import recipes as recipes_mod
-from oathkey import store as store_mod
-from oathkey import validate as validate_mod
+from stuntkey import __version__
+from stuntkey import cli as cli_mod
+from stuntkey import connect as connect_mod
+from stuntkey import mcp as mcp_mod
+from stuntkey import publicapis as publicapis_mod
+from stuntkey import recipes as recipes_mod
+from stuntkey import store as store_mod
+from stuntkey import validate as validate_mod
 
 FAKE_KEY = "sk-test-THIS-IS-A-FAKE-KEY-999"
 KEY = FAKE_KEY.encode("ascii")
@@ -762,7 +762,7 @@ class TestBrokenPipe(unittest.TestCase):
         out = io.StringIO()
         code, err = self.run_main(["list"], out)
         self.assertEqual((code, err), (0, ""))
-        self.assertIn("oathkey connect <service>", out.getvalue())
+        self.assertIn("stuntkey connect <service>", out.getvalue())
         with self.assertRaises(SystemExit) as cm:
             self.run_main(["--version"], io.StringIO())
         self.assertEqual(cm.exception.code, 0)
@@ -780,7 +780,7 @@ class TestBrokenPipe(unittest.TestCase):
             os.close(r)                       # nobody will ever read this
             try:
                 proc = subprocess.Popen(
-                    [sys.executable, "-m", "oathkey"] + argv, stdout=w,
+                    [sys.executable, "-m", "stuntkey"] + argv, stdout=w,
                     stderr=subprocess.PIPE,
                     stdin=subprocess.PIPE if stdin is not None else None,
                     cwd=_isolation.REPO, env=env)
@@ -1217,7 +1217,8 @@ class TestReadmeValidationNote(unittest.TestCase):
             self.assertIn(phrase, section)
 
 
-REPO_URL = "https://github.com/calasdan-sketch/oathkey"
+REPO_URL = "https://github.com/calasdan-sketch/stuntkey"
+HOME_URL = "https://calasautomations.com/devtools/stuntkey/"
 
 
 class TestPackagingMetadata(unittest.TestCase):
@@ -1268,16 +1269,16 @@ class TestPackagingMetadata(unittest.TestCase):
         self.assertTrue(all(isinstance(k, str) and k.strip()
                             for k in project["keywords"]))
         self.assertEqual(project["urls"],
-                         {"Homepage": REPO_URL, "Issues": REPO_URL + "/issues",
+                         {"Homepage": HOME_URL, "Issues": REPO_URL + "/issues",
                           "Source": REPO_URL,
-                          "Documentation": REPO_URL + "/blob/main/docs/guide.md",
+                          "Documentation": HOME_URL,
                           "Security": REPO_URL + "/security/policy",
                           "Changelog": REPO_URL + "/blob/main/CHANGELOG.md"})
         self.assertEqual(project["authors"], [{"name": "Calas Automations Inc."}])
 
 
 class TestOneVersion(unittest.TestCase):
-    """The version lives in oathkey/__init__.py and pyproject.toml; every
+    """The version lives in stuntkey/__init__.py and pyproject.toml; every
     other place that prints it reads it from there, so a bump cannot leave a
     stale copy behind (the public-APIs User-Agent still said 0.2.0)."""
 
@@ -1294,13 +1295,13 @@ class TestOneVersion(unittest.TestCase):
 
     def test_mcp_server_info_reports_it(self):
         info = handle(request("initialize", {}))["result"]["serverInfo"]
-        self.assertEqual(info, {"name": "oathkey", "version": __version__})
+        self.assertEqual(info, {"name": "stuntkey", "version": __version__})
 
     def test_validation_user_agent_carries_it(self):
         spec = {"url": "https://acme.test/me", "auth": {"type": "bearer"}}
         req = validate_mod._build_request(spec, FAKE_KEY)
         self.assertEqual(req.get_header("User-agent"),
-                         f"oathkey/{__version__}")
+                         f"stuntkey/{__version__}")
 
     def test_directory_download_user_agent_carries_it(self):
         seen = []
@@ -1324,7 +1325,7 @@ class TestOneVersion(unittest.TestCase):
                 mock.patch.object(publicapis_mod.urllib.request, "urlopen",
                                   fake_urlopen):
             publicapis_mod.fetch(refresh=True)
-        self.assertEqual(seen, [f"oathkey/{__version__}"])
+        self.assertEqual(seen, [f"stuntkey/{__version__}"])
 
 
 if __name__ == "__main__":

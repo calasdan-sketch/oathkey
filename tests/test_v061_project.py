@@ -8,10 +8,10 @@ from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
 import _isolation  # noqa: F401
-from oathkey import cli as cli_mod
-from oathkey import manifest
+from stuntkey import cli as cli_mod
+from stuntkey import manifest
 
-BAD = ("README.md", "oathkey.json", "src/app.py", "C:/x/.env", "C:\\x\\.env", "\\\\host\\share\\.env",
+BAD = ("README.md", "stuntkey.json", "src/app.py", "C:/x/.env", "C:\\x\\.env", "\\\\host\\share\\.env",
        "/etc/.env", "~/.env", "./.env", "a/./.env", "a//.env", "../.env", ".git/config", ".git/.env",
        "a/.GIT/.env", "x/.envrc", "notes.txt", "nul.env", ".env/../../x", "a\\..\\.env", ".env\x00.md")
 GOOD = (".env", ".env.local", "config/.env", "prod.env", "a/b/.env.development")
@@ -44,7 +44,7 @@ class EnvFileRules(unittest.TestCase):
 class FindStops(unittest.TestCase):
     def test_no_git_root_means_only_here(self):
         with tempfile.TemporaryDirectory() as d:
-            with open(os.path.join(d, "oathkey.json"), "w") as f:
+            with open(os.path.join(d, "stuntkey.json"), "w") as f:
                 json.dump(man(), f)
             sub = os.path.join(d, "a", "b")
             os.makedirs(sub)
@@ -53,22 +53,22 @@ class FindStops(unittest.TestCase):
 
     def test_does_not_climb_above_git_root(self):
         with tempfile.TemporaryDirectory() as d:
-            with open(os.path.join(d, "oathkey.json"), "w") as f:
+            with open(os.path.join(d, "stuntkey.json"), "w") as f:
                 json.dump(man(), f)
             proj = os.path.join(d, "proj")
             os.makedirs(os.path.join(proj, ".git"))
             os.makedirs(os.path.join(proj, "src"))
             self.assertIsNone(manifest.find(os.path.join(proj, "src")))
-            with open(os.path.join(proj, "oathkey.json"), "w") as f:
+            with open(os.path.join(proj, "stuntkey.json"), "w") as f:
                 json.dump(man(), f)
             self.assertEqual(manifest.find(os.path.join(proj, "src")),
-                             os.path.realpath(os.path.join(proj, "oathkey.json")))
+                             os.path.realpath(os.path.join(proj, "stuntkey.json")))
 
 
 class ConnectUsesManifest(unittest.TestCase):
     def test_connect_default_env_file_comes_from_the_manifest(self):
         with tempfile.TemporaryDirectory() as d:
-            with open(os.path.join(d, "oathkey.json"), "w") as f:
+            with open(os.path.join(d, "stuntkey.json"), "w") as f:
                 json.dump(man(env_file="config/.env.local"), f)
             seen = {}
 
@@ -88,7 +88,7 @@ class ConnectUsesManifest(unittest.TestCase):
 
     def test_bad_manifest_env_file_stops_connect(self):
         with tempfile.TemporaryDirectory() as d:
-            with open(os.path.join(d, "oathkey.json"), "w") as f:
+            with open(os.path.join(d, "stuntkey.json"), "w") as f:
                 json.dump({"version": 1, "services": [], "env_file": "README.md"}, f)
             old = os.getcwd()
             os.chdir(d)
@@ -114,7 +114,7 @@ class ConnectUsesManifest(unittest.TestCase):
 class FifoDoesNotHang(unittest.TestCase):
     def test_fifo_named_py_is_skipped(self):
         import threading
-        from oathkey import detect
+        from stuntkey import detect
         if not hasattr(os, "mkfifo"):
             self.skipTest("no fifo")
         with tempfile.TemporaryDirectory() as d:
@@ -140,7 +140,7 @@ class ExportNamesTheTarget(unittest.TestCase):
 
     def run_export(self, d, args, ask="y", **kw):
         import subprocess
-        from oathkey import export
+        from stuntkey import export
         with open(os.path.join(d, ".env"), "w") as f:
             f.write(f"GROQ_API_KEY={self.KEY}\n")
         out, calls, prompts = io.StringIO(), [], []
@@ -148,8 +148,8 @@ class ExportNamesTheTarget(unittest.TestCase):
         def run(argv, input=None, **k):
             calls.append(argv)
             return subprocess.CompletedProcess(argv, 0, b"", b"")
-        cat = __import__("oathkey.recipes", fromlist=["x"]).load_recipes(
-            __import__("oathkey.recipes", fromlist=["x"]).RECIPES_DIR)
+        cat = __import__("stuntkey.recipes", fromlist=["x"]).load_recipes(
+            __import__("stuntkey.recipes", fromlist=["x"]).RECIPES_DIR)
         code = export.cmd_export(args, cat, ask=lambda p: prompts.append(p) or ask,
                                  interactive=lambda: True, out=out, which=lambda n: "/f/" + n,
                                  window=lambda *a: None,      # no pop-up in tests
@@ -158,7 +158,7 @@ class ExportNamesTheTarget(unittest.TestCase):
 
     def test_repo_from_the_git_remote_is_named_and_passed_explicitly(self):
         import subprocess
-        from oathkey import export
+        from stuntkey import export
         with tempfile.TemporaryDirectory() as d:
             subprocess.run(["git", "init", "-q", d], check=True)
             subprocess.run(["git", "-C", d, "remote", "add", "origin", "git@github.com:acme/widgets.git"], check=True)

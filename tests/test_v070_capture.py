@@ -13,15 +13,15 @@ import unittest
 from unittest import mock
 
 import _isolation  # noqa: F401
-from oathkey import agent as agent_mod
-from oathkey import consent as consent_mod
-from oathkey import allowcmd
-from oathkey import capture as capture_mod
-from oathkey import clipboard as clip_mod
-from oathkey import hook as hook_mod
-from oathkey import mcp as mcp_mod
-from oathkey import recipes as recipes_mod
-from oathkey import validate as validate_mod
+from stuntkey import agent as agent_mod
+from stuntkey import consent as consent_mod
+from stuntkey import allowcmd
+from stuntkey import capture as capture_mod
+from stuntkey import clipboard as clip_mod
+from stuntkey import hook as hook_mod
+from stuntkey import mcp as mcp_mod
+from stuntkey import recipes as recipes_mod
+from stuntkey import validate as validate_mod
 
 CATALOG = recipes_mod.load_recipes(recipes_mod.RECIPES_DIR)
 GH_KEY = "gh" + "p_" + "Qw3Er5Ty7Ui9Op1As3Df5Gh7Jk9Lz1Xc3Vb5"
@@ -159,7 +159,7 @@ class TestConsent(Base):
         mgr = self.manager()
         out = self.start(mgr)
         self.assertEqual(out["state"], "consent_needed")
-        self.assertIn("oathkey allow-agent github", out["message"])
+        self.assertIn("stuntkey allow-agent github", out["message"])
         self.assertEqual(self.clip.reads, 0)
 
     def test_a_grant_is_for_one_project_and_one_service(self):
@@ -176,7 +176,7 @@ class TestConsent(Base):
 
     def test_the_grant_is_not_kept_in_the_project(self):
         self.allow()
-        self.assertFalse(os.path.exists(os.path.join(self.proj, "oathkey.json")))
+        self.assertFalse(os.path.exists(os.path.join(self.proj, "stuntkey.json")))
         self.assertTrue(os.path.exists(self.consent))
 
     def test_a_recipe_of_your_own_is_refused(self):
@@ -395,7 +395,7 @@ class TestClipboardHistoryAndAvailability(Base):
             raise clip_mod.Unavailable("no tool")
         out = self.start(self.manager(backend=none))
         self.assertEqual(out["state"], "unavailable")
-        self.assertIn("oathkey connect github", out["message"])
+        self.assertIn("stuntkey connect github", out["message"])
 
 
 class TestThroughMcp(Base):
@@ -448,7 +448,7 @@ class TestThroughMcp(Base):
         self.assertTrue(any("Never enter a password" in x for x in r["rules"]))
         self.assertTrue(any("Never look at the key" in x for x in r["rules"]))
         self.assertTrue(any("short expiry" in x for x in r["rules"]))
-        self.assertIn("oathkey connect github", r["instructions"])     # the fallback
+        self.assertIn("stuntkey connect github", r["instructions"])     # the fallback
 
 
 class TestAllowAgentCommand(Base):
@@ -507,17 +507,17 @@ class TestHookRefusesAnAgentGrantingItself(unittest.TestCase):
         return bool(out)
 
     def test_allow_agent_is_refused(self):
-        for cmd in ("oathkey allow-agent github",
-                    "oathkey allow-agent github --allow-clipboard-history",
-                    "python -m oathkey allow-agent github",
-                    "cd /x && oathkey.exe allow-agent github"):
+        for cmd in ("stuntkey allow-agent github",
+                    "stuntkey allow-agent github --allow-clipboard-history",
+                    "python -m stuntkey allow-agent github",
+                    "cd /x && stuntkey.exe allow-agent github"):
             self.assertTrue(self.denied(cmd), cmd)
 
     def test_the_consent_file_cannot_be_read_or_edited(self):
-        self.assertTrue(self.denied("cat ~/.oathkey/agent-consent.json"))
+        self.assertTrue(self.denied("cat ~/.stuntkey/agent-consent.json"))
 
     def test_ordinary_commands_stay_allowed(self):
-        self.assertFalse(self.denied("oathkey list"))
+        self.assertFalse(self.denied("stuntkey list"))
 
 
 if __name__ == "__main__":

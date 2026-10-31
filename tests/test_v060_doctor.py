@@ -10,9 +10,9 @@ import urllib.error
 from unittest import mock
 
 import _isolation  # noqa: F401
-from oathkey import cli as cli_mod
-from oathkey import doctor
-from oathkey import recipes as recipes_mod
+from stuntkey import cli as cli_mod
+from stuntkey import doctor
+from stuntkey import recipes as recipes_mod
 
 CAT = recipes_mod.load_recipes(recipes_mod.RECIPES_DIR)
 

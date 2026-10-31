@@ -5,7 +5,7 @@ import unittest
 from contextlib import redirect_stdout
 from unittest import mock
 
-from oathkey import approve, broker, selftest
+from stuntkey import approve, broker, selftest
 
 
 class SelftestTests(unittest.TestCase):
@@ -78,7 +78,7 @@ class MutationTests(unittest.TestCase):
             self.assertTrue(any("padded" in a for a in self._failed()))
 
     def test_disguise_check_weakened(self):
-        from oathkey import scrub
+        from stuntkey import scrub
         with mock.patch.object(scrub, "_squash", lambda t: ""):
             failed = self._failed()
         self.assertTrue(any("dashes" in a or "invisible" in a for a in failed))

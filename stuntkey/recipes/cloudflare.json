@@ -1,0 +1,54 @@
+{
+  "display": "Cloudflare",
+  "docs": "https://developers.cloudflare.com/fundamentals/api/get-started/create-token/",
+  "env_var": "CLOUDFLARE_API_TOKEN",
+  "key_url": "https://dash.cloudflare.com/profile/api-tokens",
+  "scopes": [],
+  "service": "cloudflare",
+  "steps": [
+    "Sign in to the Cloudflare dashboard; this is My Profile → API Tokens",
+    "Click 'Create Token' and pick a template (e.g. 'Edit zone DNS') or 'Create Custom Token'",
+    "Set the permissions and the zone/account resources, then 'Continue to summary' → 'Create Token'",
+    "Copy the token — it is shown exactly once",
+    "Tokens made for an account (not for you personally) are checked at a different address; if the check says the token is wrong but you just made it, test it with Cloudflare's own docs"
+  ],
+  "validate": {
+    "auth": {
+      "type": "bearer"
+    },
+    "expect": [
+      200
+    ],
+    "method": "GET",
+    "reject": [
+      400,
+      401,
+      403
+    ],
+    "url": "https://api.cloudflare.com/client/v4/user/tokens/verify"
+  },
+  "fields": [
+    {
+      "env_var": "CLOUDFLARE_API_TOKEN",
+      "label": "API token",
+      "name": "key",
+      "detect": "cfut_[A-Za-z0-9_-]{16,}",
+      "detect_confidence": "known",
+      "capture_accept": "^cfut_[A-Za-z0-9_-]{16,300}\\Z"
+    }
+  ],
+  "unverified": [
+    "validate.url (works for user tokens; account-owned tokens use accounts/{id}/tokens/verify)"
+  ],
+  "least_privilege": {
+    "summary": "Use a template or custom token limited to one zone and only the permissions you need - never the Global API Key."
+  },
+  "revoke": {
+    "page": "https://dash.cloudflare.com/profile/api-tokens",
+    "steps": [
+      "Sign in; this is My Profile > API Tokens",
+      "Open the menu (...) next to the leaked token and choose Delete",
+      "Confirm"
+    ]
+  }
+}

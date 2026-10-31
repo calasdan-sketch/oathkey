@@ -9,7 +9,7 @@ import sys
 import unittest
 from unittest import mock
 
-from oathkey import cli as cli_mod
+from stuntkey import cli as cli_mod
 
 
 class TestHardenStreams(unittest.TestCase):

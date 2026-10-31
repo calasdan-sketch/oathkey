@@ -1,0 +1,79 @@
+{
+  "display": "Vercel",
+  "docs": "https://vercel.com/docs/rest-api/user/get-the-user",
+  "env_var": "VERCEL_TOKEN",
+  "key_url": "https://vercel.com/account/tokens",
+  "scopes": [],
+  "service": "vercel",
+  "steps": [
+    "Sign in to Vercel and open Account > Tokens",
+    "Give the token a name",
+    "Use the Scope dropdown to pick a single team (or project) rather than everything",
+    "Choose an expiration and click Create",
+    "Copy the token - it is shown exactly once"
+  ],
+  "validate": {
+    "auth": {
+      "type": "bearer"
+    },
+    "expect": [
+      200
+    ],
+    "method": "GET",
+    "url": "https://api.vercel.com/v2/user",
+    "limited": [
+      {
+        "status": 403,
+        "meaning": "the token is valid but is limited to a project or team, so it may not read your user profile; that is fine"
+      }
+    ],
+    "body_rules": [
+      {
+        "status": 403,
+        "body_contains": "\"invalidToken\":true",
+        "result": "invalid",
+        "meaning": "Vercel says the token is not valid"
+      },
+      {
+        "status": 403,
+        "body_contains": "\"invalidToken\": true",
+        "result": "invalid",
+        "meaning": "Vercel says the token is not valid"
+      }
+    ]
+  },
+  "fields": [
+    {
+      "env_var": "VERCEL_TOKEN",
+      "label": "token",
+      "name": "key",
+      "detect": "vcp_[A-Za-z0-9_-]{16,}",
+      "detect_confidence": "known",
+      "capture_accept": "^vcp_[A-Za-z0-9_-]{16,300}\\Z"
+    }
+  ],
+  "least_privilege": {
+    "summary": "Scope the token to one team or project and set an expiration.",
+    "url": "https://vercel.com/account/tokens"
+  },
+  "unverified": [
+    "how Vercel answers an invalid token (believed to be a 403 that says invalidToken: true; the docs do not say)"
+  ],
+  "revoke": {
+    "api": {
+      "method": "DELETE",
+      "url": "https://api.vercel.com/v3/user/tokens/current",
+      "auth": {
+        "type": "bearer"
+      },
+      "expect": [
+        200
+      ]
+    },
+    "page": "https://vercel.com/account/tokens",
+    "steps": [
+      "Find the leaked token in Account > Tokens",
+      "Click Delete and confirm"
+    ]
+  }
+}

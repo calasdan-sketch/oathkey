@@ -17,14 +17,14 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from unittest import mock
 
 import _isolation
-from oathkey import __version__
-from oathkey import cli as cli_mod
-from oathkey import connect as connect_mod
-from oathkey import keychain as keychain_mod
-from oathkey import mcp as mcp_mod
-from oathkey import recipes as recipes_mod
-from oathkey import store as store_mod
-from oathkey import validate as validate_mod
+from stuntkey import __version__
+from stuntkey import cli as cli_mod
+from stuntkey import connect as connect_mod
+from stuntkey import keychain as keychain_mod
+from stuntkey import mcp as mcp_mod
+from stuntkey import recipes as recipes_mod
+from stuntkey import store as store_mod
+from stuntkey import validate as validate_mod
 
 REPO = _isolation.REPO
 FAKE_KEY = "sk-test-THIS-IS-A-FAKE-KEY-999"
@@ -226,7 +226,7 @@ class TestPrivateEnvWrite(unittest.TestCase):
         self.assertEqual(set(index), {"OTHER", "ACME_API_KEY"})
 
     def test_every_text_open_in_package_names_an_encoding(self):
-        pkg = os.path.join(REPO, "oathkey")
+        pkg = os.path.join(REPO, "stuntkey")
         for name in os.listdir(pkg):
             if not name.endswith(".py"):
                 continue
@@ -260,11 +260,11 @@ class TestInstallLayout(unittest.TestCase):
         proj = data["project"]
         self.assertEqual(proj["version"], __version__)
         self.assertEqual(proj["license"], "MIT")
-        self.assertEqual(proj["scripts"]["oathkey"], "oathkey.cli:main")
+        self.assertEqual(proj["scripts"]["stuntkey"], "stuntkey.cli:main")
         self.assertTrue(proj["classifiers"])
-        self.assertEqual(data["tool"]["setuptools"]["packages"], ["oathkey"])
+        self.assertEqual(data["tool"]["setuptools"]["packages"], ["stuntkey"])
         self.assertEqual(data["tool"]["setuptools"]["package-data"],
-                         {"oathkey": ["recipes/*.json", "skill/*.md"]})
+                         {"stuntkey": ["recipes/*.json", "skill/*.md"]})
         self.assertIn("setuptools>=77", data["build-system"]["requires"][0])
 
     def test_builtin_recipes_live_inside_the_package(self):
@@ -421,7 +421,7 @@ class TestKeychain(unittest.TestCase):
         self.assertEqual(argv, ["security", "-i"])
         self.assertNotIn(FAKE_KEY, " ".join(argv))
         self.assertIn(f'-w "{FAKE_KEY}"', stdin.decode())
-        self.assertIn('-s "oathkey:acme"', stdin.decode())
+        self.assertIn('-s "stuntkey:acme"', stdin.decode())
         self.assertIn('-a "ACME_API_KEY"', stdin.decode())
         run = _FakeRun(stdout=(FAKE_KEY + "\n").encode())
         self.assertEqual(keychain_mod.read("acme", "ACME_API_KEY",
@@ -460,7 +460,7 @@ class TestKeychain(unittest.TestCase):
         used = keychain_mod.store("acme", "ACME_API_KEY", FAKE_KEY,
                                   keychain_mod.WINDOWS, ctypes_mod=ct)
         self.assertEqual(used, keychain_mod.WINDOWS)
-        ctype, persist, user, blob = ct.vault["oathkey:acme"]
+        ctype, persist, user, blob = ct.vault["stuntkey:acme"]
         self.assertEqual((ctype, persist, user), (1, 2, "ACME_API_KEY"))
         self.assertEqual(blob.decode("utf-16-le"), FAKE_KEY)  # cmdkey/.NET layout
         self.assertEqual(keychain_mod.read("acme", "ACME_API_KEY",
@@ -513,7 +513,7 @@ class TestKeychain(unittest.TestCase):
                                       keychain=fake)("ACME_API_KEY", FAKE_KEY)
         self.assertEqual(stored, [("acme", "ACME_API_KEY", FAKE_KEY, keychain_mod.LINUX)])
         self.assertIn("Secret Service", desc)
-        self.assertIn("oathkey run acme", desc)
+        self.assertIn("stuntkey run acme", desc)
         self.assertNotIn(FAKE_KEY, desc)
         self.assertFalse(os.path.exists(env))
 
@@ -593,7 +593,7 @@ class TestKeychain(unittest.TestCase):
         with open(os.path.join(REPO, "docs", "guide.md"), encoding="utf-8") as f:
             text = f.read()
         for phrase in ("macOS", "Credential Manager", "secret-tool",
-                       "--store keychain", "oathkey run"):
+                       "--store keychain", "stuntkey run"):
             self.assertIn(phrase, text)
         self.assertNotIn(".env` file storage only", text)
 

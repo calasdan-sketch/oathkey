@@ -1,11 +1,11 @@
 """The MCP server survives a message it cannot take apart or write back.
 
-Panel finding (SEA-3): `python -c "print('['*100000)" | oathkey mcp`
+Panel finding (SEA-3): `python -c "print('['*100000)" | stuntkey mcp`
 ended in a traceback and exit status 1. json.loads raises RecursionError, not
 ValueError, for text nested that deep, and serve() only expected ValueError.
 The server must answer "Parse error" and carry on, like any other bad line.
 
-Round-2 panel (SEA-2): `echo '{...initialize...}' | oathkey mcp >&-` ended
+Round-2 panel (SEA-2): `echo '{...initialize...}' | stuntkey mcp >&-` ended
 in an AttributeError traceback. With standard output closed Python has no
 sys.stdout (it is None), and the first reply was written to it; with standard
 input closed the first request was read from it. Now the server says so in
@@ -22,8 +22,8 @@ import unittest
 from unittest import mock
 
 import _isolation  # noqa: F401  (fake HOME/USERPROFILE for the whole run)
-from oathkey import cli as cli_mod
-from oathkey import mcp as mcp_mod
+from stuntkey import cli as cli_mod
+from stuntkey import mcp as mcp_mod
 
 PING = json.dumps({"jsonrpc": "2.0", "id": 7, "method": "ping"})
 
@@ -145,7 +145,7 @@ class TestTheRealCommand(unittest.TestCase):
         env = {k: v for k, v in os.environ.items() if k != "PYTHONUNBUFFERED"}
         env["PYTHONPATH"] = _isolation.REPO + os.pathsep + env.get("PYTHONPATH", "")
         proc = subprocess.run(
-            [sys.executable, "-m", "oathkey", "mcp"],
+            [sys.executable, "-m", "stuntkey", "mcp"],
             input=b"[" * 100000 + b"\n" + PING.encode() + b"\n",
             capture_output=True, env=env, cwd=_isolation.mktemp(), timeout=120)
         self.assertEqual(proc.stderr.decode("utf-8", "replace"), "")
@@ -221,7 +221,7 @@ class TestAClosedStandardStream(unittest.TestCase):
             with self.subTest(redirect):
                 proc = subprocess.run(
                     ["sh", "-c", f'exec "$@" {redirect}', "sh", sys.executable,
-                     "-m", "oathkey", "mcp"],
+                     "-m", "stuntkey", "mcp"],
                     input=None if "<" in redirect else INITIALIZE,
                     capture_output=True, env=env, cwd=_isolation.mktemp(),
                     timeout=60)

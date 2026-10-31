@@ -29,7 +29,7 @@ jobs:
         id: check
         run: |
           set +e
-          python -m oathkey doctor-recipes --timeout 15 > "$RUNNER_TEMP/report.txt"
+          python -m stuntkey doctor-recipes --timeout 15 > "$RUNNER_TEMP/report.txt"
           echo "code=$?" >> "$GITHUB_OUTPUT"
           cat "$RUNNER_TEMP/report.txt"
       - name: Open or update the one rot issue
@@ -37,7 +37,7 @@ jobs:
         run: |
           title="Recipe rot: some recipe web addresses no longer work"
           {
-            echo "The weekly \`oathkey doctor-recipes\` check found addresses that are gone or unreachable."
+            echo "The weekly \`stuntkey doctor-recipes\` check found addresses that are gone or unreachable."
             echo
             echo "Run: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             echo

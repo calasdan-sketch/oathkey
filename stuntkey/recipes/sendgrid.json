@@ -1,0 +1,53 @@
+{
+  "display": "SendGrid",
+  "docs": "https://www.twilio.com/docs/sendgrid/ui/account-and-settings/api-keys",
+  "env_var": "SENDGRID_API_KEY",
+  "fields": [
+    {
+      "env_var": "SENDGRID_API_KEY",
+      "label": "API key",
+      "name": "key",
+      "detect": "SG\\.[A-Za-z0-9_.-]{16,}",
+      "detect_confidence": "guess"
+    }
+  ],
+  "key_url": "https://app.sendgrid.com/settings/api_keys",
+  "scopes": [],
+  "service": "sendgrid",
+  "steps": [
+    "Sign in to SendGrid; this is Settings > API Keys",
+    "Click 'Create API Key'",
+    "Enter a name and choose 'Custom Access', then tick Mail Send (or 'Full Access' if you need more)",
+    "Click 'Create & View' and copy the key - it is shown exactly once"
+  ],
+  "validate": {
+    "auth": {
+      "type": "bearer"
+    },
+    "expect": [
+      200
+    ],
+    "method": "GET",
+    "url": "https://api.sendgrid.com/v3/scopes",
+    "limited": [
+      {
+        "status": 403,
+        "meaning": "the key is valid but is not allowed to list its own permissions; it will still do what you gave it"
+      }
+    ],
+    "reject": [
+      401
+    ]
+  },
+  "least_privilege": {
+    "summary": "Custom Access with only Mail Send."
+  },
+  "revoke": {
+    "page": "https://app.sendgrid.com/settings/api_keys",
+    "steps": [
+      "Sign in; this is Settings > API Keys",
+      "Open the gear menu next to the leaked key and choose Delete",
+      "Confirm"
+    ]
+  }
+}

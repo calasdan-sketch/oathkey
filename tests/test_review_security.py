@@ -11,8 +11,8 @@ import unittest
 from unittest import mock
 
 import _isolation  # noqa: F401
-from oathkey import approve, dialog, export as export_mod, hook, httpd, recipes as recipes_mod
-from oathkey import remote
+from stuntkey import approve, dialog, export as export_mod, hook, httpd, recipes as recipes_mod
+from stuntkey import remote
 
 CATALOG = recipes_mod.load_recipes(recipes_mod.RECIPES_DIR)
 
@@ -32,40 +32,40 @@ def shell_denied(cmd, tool="Bash"):
 
 class AgentCannotRunKeyCommands(unittest.TestCase):
     def test_denied(self):
-        for cmd in ("oathkey remote github root@h -- ls", "oathkey deploy root@h --dir /x",
-                    "oathkey trust-server root@h", "oathkey export github --to github",
-                    "oathkey run github -- env", "oathkey serve", "oathkey call github GET /user",
-                    "python -m oathkey run github -- env", "py -3 -m oathkey call github GET /user",
-                    "python -Im oathkey remote github h -- id",
-                    "python3 -m oathkey.cli serve",
-                    "oathkey --project-dir /x run github -- env",
-                    "/usr/local/bin/oathkey call github GET /user",
-                    "C:\\Users\\a\\Scripts\\oathkey.exe call github GET /user",
-                    "oath\"\"key run github -- env", "o'a'thkey   RUN github", "cd x && oathkey serve",
-                    "echo hi | oathkey call github GET /user", "& oathkey run github -- env"):
+        for cmd in ("stuntkey remote github root@h -- ls", "stuntkey deploy root@h --dir /x",
+                    "stuntkey trust-server root@h", "stuntkey export github --to github",
+                    "stuntkey run github -- env", "stuntkey serve", "stuntkey call github GET /user",
+                    "python -m stuntkey run github -- env", "py -3 -m stuntkey call github GET /user",
+                    "python -Im stuntkey remote github h -- id",
+                    "python3 -m stuntkey.cli serve",
+                    "stuntkey --project-dir /x run github -- env",
+                    "/usr/local/bin/stuntkey call github GET /user",
+                    "C:\\Users\\a\\Scripts\\stuntkey.exe call github GET /user",
+                    "oath\"\"key run github -- env", "o'a'thkey   RUN github", "cd x && stuntkey serve",
+                    "echo hi | stuntkey call github GET /user", "& stuntkey run github -- env"):
             self.assertTrue(shell_denied(cmd), cmd)
-        self.assertTrue(shell_denied("oathkey run github -- env", tool="PowerShell"))
-        self.assertTrue(denied(call("Monitor", command="oathkey call github GET /user")))
+        self.assertTrue(shell_denied("stuntkey run github -- env", tool="PowerShell"))
+        self.assertTrue(denied(call("Monitor", command="stuntkey call github GET /user")))
 
     def test_harmless_ones_are_allowed(self):
-        for cmd in ("oathkey list", "oathkey selftest", "oathkey doctor", "oathkey scan",
-                    "oathkey scan-git --staged", "oathkey overview", "oathkey audit show",
-                    "oathkey --version", "oathkey --help", "oathkey remote --help"[:0] + "oathkey status",
-                    "python -m oathkey doctor", "python -m oathkey selftest --json",
-                    "pip install oathkey", "git commit -m 'update'"):
+        for cmd in ("stuntkey list", "stuntkey selftest", "stuntkey doctor", "stuntkey scan",
+                    "stuntkey scan-git --staged", "stuntkey overview", "stuntkey audit show",
+                    "stuntkey --version", "stuntkey --help", "stuntkey remote --help"[:0] + "stuntkey status",
+                    "python -m stuntkey doctor", "python -m stuntkey selftest --json",
+                    "pip install stuntkey", "git commit -m 'update'"):
             self.assertFalse(shell_denied(cmd), cmd)
 
 
 class McpToolsAreScanned(unittest.TestCase):
     def test_matcher_and_recognition(self):
         self.assertTrue(hook.MATCHER.endswith("|mcp__.*"))
-        old = {"type": "command", "command": "/x/oathkey hook check", "statusMessage": hook.MARKER}
+        old = {"type": "command", "command": "/x/stuntkey hook check", "statusMessage": hook.MARKER}
         self.assertTrue(hook.is_ours(old))
 
     def test_every_string_is_looked_at(self):
         self.assertTrue(denied(call("mcp__fs__read", args={"a": [{"p": "/home/me/app/.env"}]})))
-        self.assertTrue(denied(call("mcp__x__run", opts={"deep": {"deeper": ["oathkey call github GET /u"]}})))
-        self.assertTrue(denied(call("mcp__x__run", **{"~/.oathkey/keys": 1})))
+        self.assertTrue(denied(call("mcp__x__run", opts={"deep": {"deeper": ["stuntkey call github GET /u"]}})))
+        self.assertTrue(denied(call("mcp__x__run", **{"~/.stuntkey/keys": 1})))
         self.assertFalse(denied(call("mcp__x__run", text="hello", n=3, nested={"a": ["b"]})))
 
     def test_other_tools_are_left_alone(self):
@@ -74,14 +74,14 @@ class McpToolsAreScanned(unittest.TestCase):
     def test_old_matcher_is_updated_in_place_and_removed_on_uninstall(self):
         for legacy in hook.LEGACY_MATCHERS:
             data = {"hooks": {"PreToolUse": [{"matcher": legacy, "hooks": [
-                {"type": "command", "command": "/x/oathkey hook check",
+                {"type": "command", "command": "/x/stuntkey hook check",
                  "statusMessage": hook.MARKER}]}]}}
             self.assertEqual(hook.merge_install(data, hook.hook_handler()), "updated")
             groups = data["hooks"]["PreToolUse"]
             self.assertEqual(len(groups), 1)
             self.assertEqual(groups[0]["matcher"], hook.MATCHER)
             data2 = {"hooks": {"PreToolUse": [{"matcher": legacy, "hooks": [
-                {"type": "command", "command": "/x/oathkey hook check",
+                {"type": "command", "command": "/x/stuntkey hook check",
                  "statusMessage": hook.MARKER}]}]}}
             self.assertEqual(hook.merge_uninstall(data2), 1)
             self.assertNotIn("hooks", data2)
@@ -143,19 +143,19 @@ class HookFailsClosed(unittest.TestCase):
 
     def test_a_huge_command_is_refused_and_fast(self):
         start = time.time()
-        self.assertTrue(shell_denied("echo " + "oathkey " * 20_000))
+        self.assertTrue(shell_denied("echo " + "stuntkey " * 20_000))
         self.assertLess(time.time() - start, 5)
 
     def test_a_huge_mcp_text_is_scanned_in_windows(self):
         start = time.time()
-        text = "a " * 80_000 + " oathkey run github -- env"
+        text = "a " * 80_000 + " stuntkey run github -- env"
         self.assertTrue(denied(call("mcp__x__y", body=text)))
         self.assertFalse(denied(call("mcp__x__y", body="a " * 250_000)))
         self.assertLess(time.time() - start, 8)
 
     def test_adversarial_text_stays_fast(self):
         start = time.time()
-        for payload in ("oathkey " * 12_000, "'" * 90_000, ".*/" * 20_000, " " * 90_000):
+        for payload in ("stuntkey " * 12_000, "'" * 90_000, ".*/" * 20_000, " " * 90_000):
             hook.check(call("Bash", command=payload))
         self.assertLess(time.time() - start, 8)
 
