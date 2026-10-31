@@ -124,6 +124,7 @@ CLI_PROGRAMS = ("gh",)
 # DELETE or a POST to an endpoint on the key's own domain, where the
 # cross-domain prompt never fires.
 ALLOWED_METHODS = ("GET", "HEAD")
+LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
 
 # An env_var ends up as a literal line "NAME=<key>" in the user's .env.
 # Anything but a plain shell identifier (e.g. "GOOD=1\nEVIL=pwned") would
@@ -612,6 +613,12 @@ def validate_recipe(data: dict) -> dict:
     _check_cli_token(data)
     # A pasted key must never travel in cleartext: the mint page, the
     # validation endpoint and any token endpoint must all be HTTPS.
+    # Exception: a "local": true recipe (a router on this computer, such as
+    # freellmapi) may use http, but only to a loopback address, so the key
+    # never leaves the machine.
+    local = data.get("local", False)
+    if not isinstance(local, bool):
+        raise RecipeError("local must be true or false")
     urls = [("key_url", data["key_url"]), ("validate.url", v["url"])]
     if auth["type"] == "oauth2_client_credentials":
         urls.append(("validate.auth.token_url", auth["token_url"]))
@@ -624,7 +631,13 @@ def validate_recipe(data: dict) -> dict:
             # `oathkey add` or a whole broken catalog.
             raise RecipeError(
                 f"{label} is not a valid URL: {url}") from None
-        if scheme != "https":
+        if local:
+            if (scheme not in ("http", "https")
+                    or urllib.parse.urlsplit(url).hostname not in LOOPBACK_HOSTS):
+                raise RecipeError(
+                    f"{label} of a local recipe must point at this computer "
+                    f"(127.0.0.1, localhost or [::1]). Offending URL: {url}")
+        elif scheme != "https":
             raise RecipeError(
                 f"{label} must use https:// — a key sent there would travel "
                 f"in cleartext. Offending URL: {url}")
