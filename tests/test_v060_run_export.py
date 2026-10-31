@@ -91,8 +91,8 @@ class TestRedactorVariants(unittest.TestCase):
     def test_unrelated_text_untouched(self):
         self.assertEqual(redact.Redactor([KEY]).text("hello world"), "hello world")
 
-    def test_honest_limit_reversed_value_is_not_caught(self):
-        self.assertIn(KEY[::-1], redact.Redactor([KEY]).text(KEY[::-1]))
+    def test_reversed_value_is_caught_since_the_merge_with_scrub(self):
+        self.assertEqual(redact.Redactor([KEY]).text(KEY[::-1]), "[REDACTED]")
 
     def test_honest_limit_partial_print_is_not_caught(self):
         self.assertIn(KEY[:10], redact.Redactor([KEY]).text(KEY[:10]))
