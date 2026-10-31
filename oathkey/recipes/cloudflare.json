@@ -42,5 +42,13 @@
   ],
   "least_privilege": {
     "summary": "Use a template or custom token limited to one zone and only the permissions you need - never the Global API Key."
+  },
+  "revoke": {
+    "page": "https://dash.cloudflare.com/profile/api-tokens",
+    "steps": [
+      "Sign in; this is My Profile > API Tokens",
+      "Open the menu (...) next to the leaked token and choose Delete",
+      "Confirm"
+    ]
   }
 }

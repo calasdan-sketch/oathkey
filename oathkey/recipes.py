@@ -79,6 +79,14 @@ Other optional top-level fields:
   "least_privilege": {"summary": "...", "url": "https://..."}  # what to pick
   "unverified": ["validate.url"]   # parts the vendor docs do not confirm
 
+"revoke" (optional) is how `oathkey panic` kills a leaked key: the vendor's
+official API call, its revoke page with steps for the person, or both (the
+page is the fallback). The API host must be one the key already goes to.
+  "revoke": {"api": {"method": "DELETE", "url": "https://api.vercel.com/v3/user/tokens/current",
+                     "auth": {"type": "bearer"} | {"type": "json_list", "field": "credentials"},
+                     "expect": [200], "headers": {...}},
+             "page": "https://...", "steps": ["..."]}
+
 "cli_token" (BUILT-IN recipes only) gets the key from the vendor's own CLI
 after its browser sign-in, so nothing is copied at all:
   "cli_token": {"login": ["gh", "auth", "login", "--web"], "token": ["gh", "auth", "token"]}
@@ -495,6 +503,59 @@ def _check_cli_token(data: dict) -> None:
         raise RecipeError("cli_token works for single-key recipes only")
 
 
+REVOKE_METHODS = ("POST", "DELETE")
+REVOKE_AUTH = ("bearer", "json_list")
+
+
+def _check_revoke(data: dict) -> None:
+    rv = data.get("revoke")
+    if rv is None:
+        return
+    if not (isinstance(rv, dict) and rv and set(rv) <= {"api", "page", "steps"}
+            and ("api" in rv or "page" in rv)):
+        raise RecipeError("revoke must be {api?, page?, steps?} with api or page")
+    page = rv.get("page")
+    if page is not None and not (isinstance(page, str) and page.startswith("https://")):
+        raise RecipeError("revoke.page must be an https:// link")
+    steps = rv.get("steps")
+    if steps is not None and not (isinstance(steps, list) and all(
+            isinstance(x, str) and x.strip() for x in steps)):
+        raise RecipeError("revoke.steps must be a list of text")
+    api = rv.get("api")
+    if api is None:
+        return
+    if not isinstance(api, dict) or set(api) - {"method", "url", "auth", "expect", "headers"}:
+        raise RecipeError("revoke.api must be {method, url, auth, expect, headers?}")
+    if len(fields(data)) != 1:
+        raise RecipeError("revoke.api works for single-key recipes only")
+    if api.get("method") not in REVOKE_METHODS:
+        raise RecipeError(f"revoke.api.method must be one of {REVOKE_METHODS}")
+    url = api.get("url")
+    try:
+        parts = urllib.parse.urlsplit(url) if isinstance(url, str) else None
+    except ValueError:
+        parts = None
+    # the key may only go where it already goes: never a new server
+    if (parts is None or parts.scheme != "https" or not parts.hostname
+            or parts.hostname.lower() not in _hosts(data)):
+        raise RecipeError("revoke.api.url must be https:// on the validation host")
+    auth = api.get("auth")
+    if not (isinstance(auth, dict) and auth.get("type") in REVOKE_AUTH):
+        raise RecipeError(f"revoke.api.auth.type must be one of {REVOKE_AUTH}")
+    if auth["type"] == "json_list" and not (isinstance(auth.get("field"), str)
+                                            and FIELD_NAME_RE.match(auth["field"])):
+        raise RecipeError("revoke.api.auth json_list needs a field name")
+    expect = api.get("expect")
+    if not (isinstance(expect, list) and expect and all(
+            isinstance(c, int) and 200 <= c <= 299 for c in expect)):
+        raise RecipeError("revoke.api.expect must be a list of 2xx statuses")
+    headers = api.get("headers")
+    if headers is not None and not (isinstance(headers, dict) and all(
+            isinstance(k, str) and HEADER_NAME_RE.match(k) and isinstance(v, str)
+            and not set(v) & {"\r", "\n"} for k, v in headers.items())):
+        raise RecipeError("revoke.api.headers must be a {name: value} object")
+
+
 RESULTS = ("valid", "limited", "invalid")
 STS_BODY = "Action=GetCallerIdentity&Version=2011-06-15"
 
@@ -611,6 +672,7 @@ def validate_recipe(data: dict) -> dict:
     _check_fields(data)
     _check_auth(auth, {f["name"] for f in fields(data)})
     _check_cli_token(data)
+    _check_revoke(data)
     # A pasted key must never travel in cleartext: the mint page, the
     # validation endpoint and any token endpoint must all be HTTPS.
     # Exception: a "local": true recipe (a router on this computer, such as

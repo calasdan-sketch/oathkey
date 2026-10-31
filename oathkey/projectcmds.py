@@ -202,7 +202,8 @@ def status_rows(manifest: dict, root: str, catalog: dict, env_file: str,
         if state == "missing":
             hint = f"oathkey connect {slug}"
         elif age is not None and age >= max_age:
-            hint = f"{age} days old (limit {max_age}) - rotate: oathkey rotate {slug}"
+            hint = (f"{age} days old (limit {max_age}) - consider `oathkey rotate {slug}`"
+                    f" (or `oathkey panic {slug}` if it may have leaked)")
         elif state == "partly stored":
             hint = f"missing {', '.join(where['missing'])} - oathkey connect {slug}"
         rows.append({"service": slug, "state": state, "where": places,

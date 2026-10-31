@@ -37,9 +37,18 @@
     "url": "https://api.twilio.com/2010-04-01/Accounts.json"
   },
   "unverified": [
-    "Auth Token format"
+    "Auth Token format",
+    "revoke.steps (the exact Auth Token rotation clicks were not re-confirmed)"
   ],
   "least_privilege": {
     "summary": "For an app, create a Twilio API key (SK...) in the Console; keep the Auth Token for emergencies."
+  },
+  "revoke": {
+    "page": "https://console.twilio.com/",
+    "steps": [
+      "Sign in to the Twilio Console and find the Auth Token under Account Info",
+      "Use the console control that replaces (rotates) the Auth Token, so the leaked one stops working",
+      "If the leaked value was an API key (SK...), delete that key instead"
+    ]
   }
 }

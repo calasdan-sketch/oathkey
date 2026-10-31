@@ -412,6 +412,7 @@ oathkey allow-agent --list | --revoke [service]   # what is allowed in this proj
 oathkey doctor-recipes [service ...] [--json] [--timeout S] [--my-recipes]   # have recipe addresses rotted?
 oathkey connect <service> --allow-clipboard-history   # keep copy-and-go even if Windows keeps a history
 oathkey rotate <service>            # replace a stored key
+oathkey panic <service> [--dry-run] [--env-file FILE] [--no-browser]   # leaked key: revoke (API or page), get a new one, find the old one (terminal only)
 oathkey forget <service>            # remove the key: OS keychain entry + .env line(s)
 oathkey add                         # capture a new service recipe interactively
 oathkey find <query>                # find free public APIs for a task

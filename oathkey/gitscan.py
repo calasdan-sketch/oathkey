@@ -55,7 +55,13 @@ def _is_text(sample: bytes) -> bool:
     return b"\0" not in sample
 
 
-def scan_file(path: str) -> list[dict]:
+def _pattern_hits(line: str) -> list[tuple[str, str]]:
+    return [(kind, mask(m.group(0))) for kind, rx in PATTERNS
+            for m in [rx.search(line)] if m]
+
+
+def scan_file(path: str, matcher=_pattern_hits) -> list[dict]:
+    """`matcher(line) -> [(kind, masked hint)]`; default: the key shapes."""
     out: list[dict] = []
     try:
         if os.path.islink(path) or not stat.S_ISREG(os.stat(path).st_mode):
@@ -73,11 +79,8 @@ def scan_file(path: str) -> list[dict]:
     for n, line in enumerate(text.splitlines(), 1):
         if len(line) > 300_000:
             continue
-        for kind, rx in PATTERNS:
-            m = rx.search(line)
-            if m:
-                out.append({"file": path, "line": n, "kind": kind,
-                            "hint": mask(m.group(0))})
+        for kind, hint in matcher(line):
+            out.append({"file": path, "line": n, "kind": kind, "hint": hint})
     return out
 
 
@@ -88,7 +91,8 @@ def _walk(root: str):
             yield os.path.join(dirpath, name)
 
 
-def scan(paths: list[str], home: str | None = None, include_home: bool = True) -> dict:
+def scan(paths: list[str], home: str | None = None, include_home: bool = True,
+         matcher=_pattern_hits) -> dict:
     findings: list[dict] = []
     warnings: list[dict] = []
     seen: set = set()
@@ -109,7 +113,7 @@ def scan(paths: list[str], home: str | None = None, include_home: bool = True) -
         if real in seen:
             continue
         seen.add(real)
-        found = scan_file(f)
+        found = scan_file(f, matcher)
         skipped = [x for x in found if x.get("skipped")]
         found = [x for x in found if not x.get("skipped")]
         for x in skipped:
@@ -237,7 +241,8 @@ def format_doctor(result: dict) -> str:
 
 # ---- git history and pre-commit hook ----------------------------------------------
 
-def scan_git(repo: str = ".", staged: bool = False, max_lines: int = 5_000_000) -> dict:
+def scan_git(repo: str = ".", staged: bool = False, max_lines: int = 5_000_000,
+             matcher=_pattern_hits) -> dict:
     """Look for keys in what git remembers: every added line in every
     commit (or only the staged change). A key that was ever committed is
     still readable in history even after the file is cleaned."""
@@ -267,11 +272,9 @@ def scan_git(repo: str = ".", staged: bool = False, max_lines: int = 5_000_000) 
         elif line.startswith("+++ b/"):
             fname = line[6:]
         elif line.startswith("+") and not line.startswith("+++ ") and len(line) < 200_000:
-            for kind, rx in PATTERNS:
-                m = rx.search(line)
-                if m:
-                    findings.append({"file": fname, "commit": commit, "kind": kind,
-                                     "hint": mask(m.group(0))})
+            for kind, hint in matcher(line):
+                findings.append({"file": fname, "commit": commit, "kind": kind,
+                                 "hint": hint})
     proc.stdout.close()
     code = proc.wait()
     if code not in (0, None) and not findings:

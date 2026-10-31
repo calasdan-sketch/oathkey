@@ -58,5 +58,26 @@
   "least_privilege": {
     "summary": "Fine-grained token, one repository, only the permissions you need, with an expiry. Avoid classic tokens with the broad 'repo' scope.",
     "url": "https://github.com/settings/personal-access-tokens/new"
+  },
+  "revoke": {
+    "api": {
+      "method": "POST",
+      "url": "https://api.github.com/credentials/revoke",
+      "auth": {
+        "type": "json_list",
+        "field": "credentials"
+      },
+      "headers": {
+        "Accept": "application/vnd.github+json"
+      },
+      "expect": [
+        202
+      ]
+    },
+    "page": "https://github.com/settings/personal-access-tokens",
+    "steps": [
+      "Find the leaked token in the list (classic tokens are under 'Tokens (classic)')",
+      "Click Delete (or Revoke) and confirm"
+    ]
   }
 }

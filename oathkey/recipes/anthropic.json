@@ -45,5 +45,12 @@
   },
   "unverified": [
     "validate.auth (the models page now shows 'Authorization: Bearer' and a newer anthropic-version; the x-api-key header with 2023-06-01 comes from the API overview and was not re-confirmed)"
-  ]
+  ],
+  "revoke": {
+    "page": "https://platform.claude.com/settings/keys",
+    "steps": [
+      "Find the leaked key in the list",
+      "Open its menu and choose Delete (or Disable), then confirm"
+    ]
+  }
 }

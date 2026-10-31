@@ -334,6 +334,8 @@ def _build_parser() -> argparse.ArgumentParser:
     f.add_argument("--refresh", action="store_true",
                    help="Re-download the directory (cached 7 days).")
     extras.add_parsers(sub)
+    from . import panic as panic_mod
+    panic_mod.add_parser(sub)
     from . import proxy as proxy_mod
     proxy_mod.add_parsers(sub)
     return p
@@ -901,6 +903,16 @@ def _main(argv: list[str] | None = None) -> int:
         args.env_file = _project_env_file()
         if args.env_file is None:
             return 1
+    if args.cmd == "panic":
+        from . import panic as panic_mod
+        env_file = args.env_file or _project_env_file()
+        if env_file is None:
+            return 1
+        return panic_mod.cmd_panic(
+            args, catalog, env_file=env_file, root=_project_root(),
+            connect_fn=lambda r: connect_service(
+                r, env_file=env_file, store=_store_where_key_lives(r),
+                no_browser=args.no_browser, clipboard=True, rotate=True))
     if args.cmd == "export":
         from . import export as export_mod
         return export_mod.cmd_export(args, catalog)

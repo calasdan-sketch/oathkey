@@ -60,7 +60,8 @@ def record(project_dir: str, service: str, store: str, rotated: bool = False,
     projects = load(index_path)
     entry = projects.setdefault(_project_key(project_dir), {}).get(service) or {}
     entry = {"created_at": entry.get("created_at") or stamp, "store": store,
-             "updated_at": stamp}
+             "updated_at": stamp, **({"events": entry["events"]}
+                                     if isinstance(entry.get("events"), list) else {})}
     if rotated:
         entry["rotated_at"] = stamp
     projects[_project_key(project_dir)][service] = entry
@@ -68,6 +69,31 @@ def record(project_dir: str, service: str, store: str, rotated: bool = False,
         _save(projects, index_path)
     except OSError:
         pass            # the record is a convenience; the key is already safe
+
+
+MAX_EVENTS = 50
+
+
+def event(project_dir: str, service: str, step: str, result: str,
+          index_path: str | None = None, now: datetime.datetime | None = None) -> None:
+    """Note one step (e.g. a `panic` revoke) for the service: words only,
+    never a key. The newest MAX_EVENTS are kept."""
+    stamp = (now or _now()).replace(microsecond=0).isoformat()
+    projects = load(index_path)
+    entry = dict(projects.setdefault(_project_key(project_dir), {}).get(service) or {})
+    old = entry.get("events") if isinstance(entry.get("events"), list) else []
+    entry["events"] = (old + [{"at": stamp, "step": step, "result": result}])[-MAX_EVENTS:]
+    projects[_project_key(project_dir)][service] = entry
+    try:
+        _save(projects, index_path)
+    except OSError:
+        pass
+
+
+def events(project_dir: str, service: str, index_path: str | None = None) -> list:
+    entry = load(index_path).get(_project_key(project_dir), {}).get(service)
+    found = entry.get("events") if isinstance(entry, dict) else None
+    return found if isinstance(found, list) else []
 
 
 def forget(project_dir: str, service: str, index_path: str | None = None) -> None:
