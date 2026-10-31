@@ -97,7 +97,14 @@ class NpmShim(unittest.TestCase):
         self.assertIn(__version__, r.stdout)
 
     def test_says_plainly_when_python_is_missing(self):
-        env = {"PATH": os.path.dirname(shutil.which("node"))}
+        node = shutil.which("node")
+        env = {"PATH": os.path.dirname(node)}
+        if os.name != "nt":
+            # node's own dir often holds python3 too (Homebrew /usr/local/bin
+            # on macOS); give the shim a PATH with node and nothing else.
+            only = _isolation.mktemp()
+            os.symlink(os.path.realpath(node), os.path.join(only, "node"))
+            env["PATH"] = only
         if os.name == "nt":
             env["SystemRoot"] = os.environ.get("SystemRoot", r"C:\Windows")
         r = subprocess.run([shutil.which("node"), self.js, "--version"], capture_output=True,

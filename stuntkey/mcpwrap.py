@@ -485,7 +485,10 @@ def rewrite_toml(text: str, server: Server, new_entry: dict) -> str:
             continue
         out.append(line)
     new = "\n".join(out)
-    import tomllib
+    try:
+        import tomllib
+    except ImportError:                          # Python 3.10
+        raise WrapError("changing TOML needs Python 3.11 or newer") from None
     try:
         want = tomllib.loads(text)
         got = tomllib.loads(new)

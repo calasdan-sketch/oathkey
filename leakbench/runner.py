@@ -23,6 +23,7 @@ output is passed through it in the Bash output shape before it is judged, so
 from __future__ import annotations
 
 import copy
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -64,12 +65,37 @@ def _subst(value, sbx: Sandbox):  # type: ignore[no-untyped-def]
     return value
 
 
+def _bash() -> str | None:
+    """A POSIX bash. On Windows, the bash.exe in System32 is the WSL launcher (no
+    distro on CI, and it cannot see Windows paths), so Git for Windows' bash
+    is preferred when it can be found."""
+    if os.name != "nt":
+        return shutil.which("bash")
+    git = shutil.which("git")
+    roots = [os.path.dirname(os.path.dirname(git))] if git else []
+    roots += [os.path.join(os.environ.get(v, ""), "Git")
+              for v in ("ProgramFiles", "ProgramW6432", "ProgramFiles(x86)") if os.environ.get(v)]
+    for root in roots:
+        for sub in ("bin", os.path.join("usr", "bin")):
+            cand = os.path.join(root, sub, "bash.exe")
+            if os.path.isfile(cand):
+                return cand
+    found = shutil.which("bash")
+    if found and os.path.normcase(os.path.dirname(found)) == os.path.normcase(
+            os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")):
+        return None
+    return found
+
+
 def _execute(run: dict, sbx: Sandbox) -> tuple[bool, str, str]:
     """(ran, stdout, stderr). ran is False when the interpreter is unavailable."""
     kind = run.get("kind", "sh")
     if kind == "none":
         return False, "", ""
     prefix = _INTERP.get(kind)
+    if kind == "sh":
+        bash = _bash()
+        prefix = [bash, "-c"] if bash else None
     if prefix is None or shutil.which(prefix[0]) is None:
         return False, "", ""
     cmd = _subst(run.get("cmd", ""), sbx)
