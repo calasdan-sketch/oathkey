@@ -1,46 +1,81 @@
 # oathkey
 
-**Let your AI use your API keys through oathkey without ever holding them.**
+**Let your AI use your API keys through oathkey without holding them.**
 
-- The key sits in your computer's own keychain. When your AI needs an API, it asks oathkey to make the call.
+> **Beta: not independently security-reviewed yet. Use at your own risk; MIT, no warranty.**
+
+- The key sits in your computer's own keychain. When your AI needs an API, it asks oathkey to make the call, and oathkey adds the key itself.
 - Replies are cleaned of the key. Anything other than a read (GET) waits for your click. Every call is logged.
-- Plain Python, no extra packages. No account, no server, no cloud. MIT license. **Beta: no independent security review yet.**
+- Plain Python, no extra packages. No account, no server, no cloud.
 - Not related to OATH/TOTP one-time codes.
 
 ![Recording of a terminal running oathkey --version, list, selftest and audit show. The output is real; the demo does not show saving a key.](https://raw.githubusercontent.com/calasdan-sketch/oathkey/main/docs/demo.svg)
 
-## Try it in 60 seconds
+## Start here (four steps)
 
 Need pipx? https://pipx.pypa.io
 
 ```
 pipx install oathkey
-oathkey doctor                # is it working? checks the keychain and activity log, then attacks itself once
-oathkey get github            # opens the key page; you click Copy; oathkey tests it and saves it
-oathkey call github GET /user # a window asks once to allow github reads: click Yes. Prints the answer, never the key
-oathkey selftest              # watch oathkey attack itself; prints how many attacks it stopped
-oathkey install               # plug it into Claude, Cursor or VS Code, then restart that app
+oathkey get github            # opens the key page; you click Copy; oathkey tests the key and saves it
+oathkey install               # plug oathkey into Claude, Cursor or VS Code, then restart that app
+oathkey doctor                # health check; "AI tools: plugged into ..." means it is connected
 ```
 
 When a key page asks which permissions to give, pick read-only or the minimum it offers.
 
-Now ask your AI: *"Who am I on GitHub?"* It uses your key through oathkey and never holds it.
-To see what it did: `oathkey audit show`.
+Now ask your AI: *"Who am I on GitHub?"* The AI asks oathkey for `GET /user`; oathkey makes the call with your key and hands back only the answer. The first time, a window asks you to allow GitHub reads for this session. To see what it did: `oathkey audit show`.
 
 > No `pipx`? `pip install oathkey` works too. Latest unreleased code: `pipx install git+https://github.com/calasdan-sketch/oathkey`.
 > Needs Python 3.10 or newer. On Linux the keychain needs `secret-tool` (package `libsecret-tools`). If your computer says `oathkey` is not found, close the window and open a new one, or run `python -m oathkey`.
 
+## When your AI writes normal code
+
+Asking oathkey to make a call works when the AI talks to oathkey (through MCP or `serve`). If instead your AI writes an ordinary program that uses a vendor's SDK (for example `openai.OpenAI()` reading `OPENAI_API_KEY`), that program needs the key itself. Today you run it yourself with:
+
+```
+oathkey run openai -- python app.py
+```
+
+`run` puts the key in that one program's environment only (not in a file) and scrubs the key from the program's output. The program itself does see the key, so use `run` yourself; do not hand it to an AI that can run shell commands. A proxy mode, where unchanged SDKs talk to a local oathkey address and the program does not get the key, is planned but not built yet.
+
+## The permission windows
+
+oathkey asks you, not the AI, before anything risky. The question appears in a window from your operating system (outside the AI app, so the AI cannot type the answer):
+
+- **Windows:** a standard message box titled "oathkey - permission needed". No is the default button.
+- **macOS:** a system dialog. **Linux:** a `zenity` or `kdialog` window, if one is installed in a system folder.
+- **When it asks:** the first read of each service in an AI session (one yes covers that service's reads until the AI app restarts), and every write, change or delete (each one, showing the method, address, query and whole body).
+- **No answer** in 2 minutes counts as no. Three refusals stop further requests for that session.
+- **No window possible** (SSH, WSL or Linux without a desktop, a headless server): oathkey asks on the terminal instead and you type a 4-digit code shown only there. If there is no terminal either, or a window helper is installed but cannot open, the answer is no. On WSL a window works only if WSLg (or another display) and `zenity`/`kdialog` are set up.
+- **Agent key capture** (`capture_key`, below) asks in its own window, which says it closes by itself after 5 minutes. With no window possible, it relies on a grant you made in the terminal with `oathkey allow-agent <service>`.
+
 ## Why not just put the key in a `.env` file?
 
-AI coding tools read files in your project, and they paste what they read into a chat that someone else's computer sees. A key in a file, a chat or a config can leak in seconds. With oathkey your AI never receives the key: it stays in your computer's keychain and oathkey adds it to the request itself. `oathkey get` will not leave a key in a file in your project folder unless you agree to the fallback (it asks first, and only when no keychain works).
+AI coding tools read files in your project, and they paste what they read into a chat that someone else's computer sees. A key in a file, a chat or a config can leak in seconds. With oathkey the key stays in your computer's keychain and oathkey adds it to each request, so the AI does not receive it through oathkey. `oathkey get` will not leave a key in a file in your project folder unless you agree to the fallback (it asks first, and only when no keychain works).
 
 ## How it works
 
 1. **You save a key once** (`oathkey get <service>`). It goes into the Windows, Mac or Linux keychain. oathkey tests it with a harmless call first.
 2. **Your AI asks for an action**, not a key: "GET /user on GitHub". It can only name the service, the method, the path and the data.
-3. **oathkey makes the call itself**, to the service's real address only, adds the key, and hands back the answer with any trace of the key removed.
+3. **oathkey makes the call itself**, to the service's real address only, adds the key, and hands back the answer with the key scrubbed out.
 
-Reads are allowed after one "yes" per AI session (a window asks the first time). Anything that creates, changes or deletes pops up a window and waits for you. `oathkey call` is you making the same brokered call by hand, with no AI involved.
+`oathkey call` is you making the same brokered call by hand, with no AI involved.
+
+## What oathkey does not do
+
+It reduces risk; it does not remove it, and no independent security review has been done yet.
+
+- **It does not stop an AI misusing a key it is allowed to use.** Once you allow GitHub reads, the AI can read whatever that key can read. Give each key only the permissions it needs, at the provider.
+- **It does not protect against malware, or an AI that can run programs as you.** Anything running as your user can read your keychain, edit the log and click the windows. Run risky agents in a separate account or container.
+- **It does not hide the data.** Replies from the API go to your AI, and so to the AI company. The key is scrubbed; the rest is not.
+- **It does not protect `run`.** A program started with `run` holds the key and can print it.
+- **It does not catch every disguise.** Scrubbing is best effort.
+- **The clipboard.** `get` empties it right away, but other programs or clipboard-history tools may see the key while it is there.
+- **A log that can't be rewritten.** The log shows accidents and casual edits. Someone running as you could rewrite it.
+- **It sends no telemetry.** oathkey talks only to the services you call (and, for `find`, a public list on GitHub).
+
+The threat model, with links to the code that does each job, is in [docs/THREAT_MODEL.md](https://github.com/calasdan-sketch/oathkey/blob/main/docs/THREAT_MODEL.md). More known limits (a GET can read other secrets through a vendor's own endpoints, and others) are under "Known limits" in [SECURITY.md](https://github.com/calasdan-sketch/oathkey/blob/main/SECURITY.md), which is also where to report a security problem privately.
 
 ## Check it yourself (don't trust us)
 
@@ -48,7 +83,7 @@ Reads are allowed after one "yes" per AI session (a window asks the first time).
 |---|---|
 | `oathkey selftest` | Runs oathkey's rules against simulated attacks, using a made-up key and a pretend server: a server that echoes the key in disguise, tricky addresses, names that point inside your network, writes without permission, edits to the log. Prints how many it stopped (`--verbose` lists each) and exits with an error if any gets through. It does not test the live network layer, so treat it as a check of the rules, not a security audit. |
 | `oathkey doctor` | One-paste health check: keychain, activity log, which AI tools it is plugged into, and a quick self-attack run. |
-| `oathkey scan` | Finds API keys lying in your project files and AI-tool settings. It never prints a whole key. |
+| `oathkey scan` | Finds API keys lying in your project files and AI-tool settings. It prints only a shortened form of each key. |
 | `oathkey scan-git` | Looks through git history for keys; `--staged` checks only what is about to be committed, `--install-hook` blocks such commits. |
 | `oathkey audit verify` | Checks the activity log was not edited, cut short or deleted. If it did not check out, `audit reset` starts a fresh log and keeps the old one. |
 
@@ -59,13 +94,14 @@ oathkey uses only Python's own standard library, and a test in the repository ([
 **Start**
 
 - `get <service>` - one command: opens the key page, takes the key when you click Copy (then empties the clipboard), tests it, saves it in the keychain. `--no-clipboard` uses hidden typing instead.
-- `start` - a short guided tour: what is connected and what to do next.
 - `install` / `uninstall` - plug oathkey into (or remove it from) Claude Desktop, Cursor, Claude Code and VS Code.
+- `doctor` - the health check above.
+- `start` - a short guided tour: what is connected and what to do next.
 - `list` - the services it knows.
 
 **Daily**
 
-- `call <service> <METHOD> <path>` - make one brokered call yourself (`--query name=value`, `--data '{...}'`, `--json`).
+- `call <service> <METHOD> <path>` - make one brokered call yourself (`--query name=value`, `--data '{...}'`, `--json`). Try `oathkey call github GET /user`.
 - `overview` - what is connected and whether the activity log is intact. (`status` shows where each key lives and how old it is.)
 - `audit show` - the last calls, with a warning if the log does not check out.
 - `rotate <service>` - replace a stored key.
@@ -77,10 +113,10 @@ oathkey uses only Python's own standard library, and a test in the repository ([
 
 **Advanced**
 
+- `run <service> -- <command>` - run a program with the key in its environment (see "When your AI writes normal code"). For you, not for an AI with a shell.
 - `serve` - a local web door for AI tools that cannot use MCP (OpenAI-style functions, Ollama, scripts).
-- `mcp` - the MCP server your AI app starts for you. Besides brokered calls it has `capture_key`: your AI opens the key page, you click Copy, and oathkey takes the key from the clipboard without the AI ever seeing it. You allow this per service with `allow-agent <service>`.
+- `mcp` - the MCP server your AI app starts for you. Besides brokered calls it has `capture_key`: your AI opens the key page, you click Copy, and oathkey takes the key from the clipboard without passing it to the AI. You allow this per service with `allow-agent <service>`.
 - `init` / `setup` - write `oathkey.json` for a project, then connect every service it needs.
-- `run <service> -- <command>` - run a program with the key in its environment. For you, not for an AI with a shell: a program you start can print its own environment.
 - `remote`, `trust-server`, `deploy` - use a key on your own server over ssh.
 - `add` - make your own service recipe. `find` - look for free public APIs.
 
@@ -92,19 +128,10 @@ Many commands accept `--json` (try `list`, `overview`, `selftest`, `doctor`, `au
 
 36 services are built in, from GitHub and Stripe to OpenAI and AWS. `oathkey list` shows them all.
 
-Not listed? `oathkey add` makes a recipe in a minute. A recipe cannot send a built-in service's key to a different server.
+Not listed? `oathkey add` makes a recipe in a minute. A recipe cannot send a built-in service's key to a different server. To share a recipe with everyone, see [CONTRIBUTING.md](https://github.com/calasdan-sketch/oathkey/blob/main/CONTRIBUTING.md).
 
-## What oathkey does not stop
-
-It reduces risk; it does not remove it, and no independent security review has been done yet.
-
-- **Malware, or an AI that can run programs as you.** Anything running as you can read your keychain. Run risky agents in a separate account or container.
-- **Harmful things a key is allowed to do.** Give each key only the permissions it needs, at the provider.
-- **The clipboard.** `get` empties it right away, but other programs or clipboard-history tools may see the key while it is there.
-- **A log that can't be rewritten.** The log shows accidents and casual edits. Someone running as you could rewrite it.
-
-More known limits (a GET can read other secrets through a vendor's own endpoints, the log is only tamper-evident, and others) are listed under "Known limits" in [SECURITY.md]. The full list is in [SECURITY.md](https://github.com/calasdan-sketch/oathkey/blob/main/SECURITY.md). The longer user guide (every flag, where keys are stored, two-value keys, testing) is in [docs/guide.md](https://github.com/calasdan-sketch/oathkey/blob/main/docs/guide.md).
+The longer user guide (every flag, where keys are stored, two-value keys, testing) is in [docs/guide.md](https://github.com/calasdan-sketch/oathkey/blob/main/docs/guide.md).
 
 ## License
 
-MIT. See [LICENSE](https://github.com/calasdan-sketch/oathkey/blob/main/LICENSE).
+MIT, no warranty. See [LICENSE](https://github.com/calasdan-sketch/oathkey/blob/main/LICENSE).

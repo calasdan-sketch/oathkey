@@ -52,13 +52,15 @@ class DocsMatch(unittest.TestCase):
 
     def test_readme_front_page(self):
         text = _read("README.md")
-        self.assertIn("Let your AI use your API keys through oathkey without ever holding them.", text)
+        self.assertIn("Let your AI use your API keys through oathkey without holding them.", text)
         self.assertIn("Need pipx? https://pipx.pypa.io", text)
         self.assertIn("read-only", text)
         self.assertIn("unless you agree to the fallback", text)
         self.assertIn(OLD, text)        # the migration line
-        self.assertLess(text.index("pipx install oathkey"), text.index("oathkey doctor"))
-        self.assertLess(text.index("oathkey doctor"), text.index("oathkey get github"))
+        # the one simple path: install, get a key, plug in, then doctor shows it connected
+        order = [text.index(s) for s in ("pipx install oathkey", "oathkey get github",
+                                          "oathkey install", "oathkey doctor")]
+        self.assertEqual(order, sorted(order))
 
     def test_changelog_says_fresh_start(self):
         log = _read("CHANGELOG.md").split("## 0.7.5")[0]

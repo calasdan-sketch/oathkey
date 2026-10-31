@@ -1,5 +1,7 @@
 # Security
 
+**Beta: not independently security-reviewed yet. Use at your own risk; MIT, no warranty.** The threat model, with links to the code, is in [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).
+
 oathkey is built so an AI agent can use your API keys without being handed them. It reduces risk. It does not remove it. No independent security review has been done yet.
 
 ## What it defends against
@@ -44,4 +46,26 @@ These are known and not fixed. They are listed so you can judge for yourself.
 - The package uses only Python's standard library, no outside code. A test (`tests/test_stdlib_only.py`) fails if that ever changes.
 
 ## Report a problem
-Report privately at https://github.com/calasdan-sketch/oathkey/security/advisories/new (GitHub private vulnerability reporting). Please do not open a public issue or post a working exploit first. We aim to reply within 7 days.
+
+**Please report privately. Do not open a public issue, pull request or discussion, and do not post a working exploit first.**
+
+- **Preferred:** GitHub private vulnerability reporting at https://github.com/calasdan-sketch/oathkey/security/advisories/new
+- **Or email:** security@calasautomations.com
+
+Tell us the oathkey version (`oathkey --version`), your operating system and AI app, and the steps to reproduce. A made-up key is enough; never send a real one.
+
+What happens next:
+
+- We aim to reply within 7 days and to agree on a fix plan with you.
+- **90-day disclosure.** We ask you to wait up to 90 days from your report, or until a fix is released if that is sooner, before publishing. If a fix needs longer we will say why and ask; if we stop answering, you may publish after 90 days.
+- We credit you in the advisory and the changelog unless you would rather not be named.
+- **Security reports are never closed for being stale.** No bot closes them, and they stay open until they are fixed or we agree with you that they are not a vulnerability.
+
+## Supported versions
+
+oathkey is in beta. Only the latest release on PyPI gets security fixes; please upgrade (`pipx upgrade oathkey`) before reporting. Older versions get none.
+
+| Version | Security fixes |
+|---|---|
+| latest 0.x release | yes |
+| older 0.x releases | no |

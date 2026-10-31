@@ -24,6 +24,59 @@ and one harmless call that proves the key works.
 5. **Least privilege.** Fill in `least_privilege` with the smallest scope or
    permission that works.
 
+## A recipe template
+
+Copy this into `oathkey/recipes/<slug>.json`, then replace every value. The
+full schema (two-value keys, other auth shapes, `accept`) is at the top of
+[`oathkey/recipes.py`](oathkey/recipes.py); `oathkey add` writes a first draft
+for you.
+
+```json
+{
+  "service": "example",
+  "display": "Example",
+  "key_url": "https://example.com/settings/api-keys",
+  "env_var": "EXAMPLE_API_KEY",
+  "docs": "https://docs.example.com/authentication",
+  "steps": [
+    "Click 'Create key'",
+    "Give it read-only access to the one project it needs",
+    "Copy the key now - it is shown only once"
+  ],
+  "validate": {
+    "method": "GET",
+    "url": "https://api.example.com/v1/me",
+    "auth": {"type": "bearer"},
+    "expect": [200],
+    "reject": [401]
+  },
+  "least_privilege": {
+    "summary": "A read-only key for one project.",
+    "url": "https://example.com/settings/api-keys"
+  }
+}
+```
+
+## Submitting a community recipe
+
+Community recipes are reviewed, pinned and never trusted automatically.
+
+1. **Open a pull request** that adds the JSON file and its test (see below).
+   Put the vendor docs links in the description.
+2. **Pin it.** Put the file's SHA-256 in the pull request description
+   (`sha256sum oathkey/recipes/<slug>.json`, or on Windows
+   `certutil -hashfile oathkeyecipes\<slug>.json SHA256`). A maintainer
+   checks that the hash matches the file being merged; any later change is a
+   new pull request with a new hash.
+3. **Review.** A maintainer checks every address against the vendor docs and
+   runs `oathkey doctor-recipes <slug>`. Only a merged, released recipe ships
+   with oathkey.
+4. **Never auto-trusted.** oathkey does not download recipes from anywhere. A
+   recipe someone sends you as a file is yours to check: compare its SHA-256
+   with the one the author published, read it, then copy it into your own
+   recipes folder. Even then it cannot send a built-in service's key to a
+   different server.
+
 ## Smoke test with a FAKE key
 
 Never use a real key to test. Start a local stand-in for the vendor and point

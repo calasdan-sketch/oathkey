@@ -230,6 +230,8 @@ def format_doctor(result: dict) -> str:
     lines.append("")
     lines.append("  Ready. Next: oathkey get github" if result["ok"]
                  else "  Fix the items marked FIX, then run `oathkey doctor` again.")
+    from .selftest import BETA_NOTICE
+    lines.append("  " + BETA_NOTICE)
     return "\n".join(lines)
 
 
