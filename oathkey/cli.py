@@ -90,6 +90,31 @@ def _build_parser() -> argparse.ArgumentParser:
                          "after a typed y every time, even with --yes. "
                          "Off by default: only the recipes shipped with "
                          "oathkey are used.")
+    sc.add_argument("--no-mcp", action="store_true",
+                    help="Do not also read the MCP server configs of Claude, "
+                         "Cursor, VS Code, Windsurf, Codex, Gemini and Zed.")
+    sc.add_argument("--bundle", default=None, metavar="DIR_OR_URL",
+                    help="Check a built web app (dist/, build/, out/, "
+                         ".next/static) or your own public https:// site for "
+                         "secret keys sent to every visitor's browser.")
+
+    wr = sub.add_parser(
+        "wrap", help="Move keys out of an MCP server's config into the OS keychain.",
+        description="Move the keys in an MCP server's env (Claude Desktop, "
+                    "Claude Code, Cursor, VS Code, Windsurf, Codex, Gemini, Zed) "
+                    "into the OS keychain, and start that server through "
+                    "`oathkey run` so it still gets them. Shows the change "
+                    "(keys masked), keeps a backup, asks first.")
+    wr.add_argument("client", nargs="?", help="claude-desktop, claude-code, cursor, "
+                    "vscode, windsurf, codex, gemini or zed.")
+    wr.add_argument("server", nargs="?", help="The server's name in that config.")
+    wr.add_argument("--all", action="store_true",
+                    help="Every server with a key in its env (of CLIENT, or of every client).")
+    wr.add_argument("--dry-run", action="store_true", help="Show the change; change nothing.")
+    wr.add_argument("--undo", action="store_true",
+                    help="Put back the config as it was before the last wrap.")
+    wr.add_argument("--file", default=None, help="The config file, when the server "
+                    "is in more than one.")
 
     hk = sub.add_parser(
         "hook", help="Stop Claude Code reading your .env files.",
@@ -818,7 +843,11 @@ def _main(argv: list[str] | None = None) -> int:
         return doctor_mod.cmd_doctor(args, catalog)
     catalog = recipes_mod.load_recipes()
 
+    if args.cmd == "wrap":
+        from . import mcpwrap
+        return mcpwrap.cmd_wrap(args, catalog)
     if args.cmd == "allow-agent":
+
         from . import allowcmd
         return allowcmd.cmd_allow_agent(args, catalog)
     if args.cmd == "about":
