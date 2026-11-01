@@ -383,12 +383,35 @@ class SelfAttackResultIsPinned(unittest.TestCase):
             f"now closed: {sorted(self.KNOWN_LEAKS - leaked)}. If a gap was "
             "closed, update KNOWN_LEAKS and the README number together.")
 
-    def test_every_other_probe_is_blocked_or_masked(self):
+    def test_every_other_probe_is_blocked_masked_or_unrunnable(self):
+        """No probe is in a state the benchmark does not define.
+
+        `n/a` has to be allowed: it means the probe could not run here (the
+        tool is missing, a daemon is down, there was nothing to leak), and
+        which tools exist is a property of the machine, not of stuntkey. This
+        test first pinned only blocked/masked/leaked and went red on all nine
+        CI legs because the runners have no `ripgrep` while the author's
+        machine does -- it was pinning the dev box, not the product.
+
+        `n/a` is still never counted as a pass: the GAP set is pinned exactly
+        by the test above, and the floor below stops a probe disappearing.
+        """
         from leakbench import harness
         results = harness.run("stuntkey-hook")
-        odd = {r.probe_id: r.status for r in results
-               if r.status not in ("blocked", "masked", "leaked")}
+        allowed = ("blocked", "masked", "leaked", "n/a")
+        odd = {r.probe_id: r.status for r in results if r.status not in allowed}
         self.assertEqual(odd, {}, f"probes in an unexpected state: {odd}")
+
+    def test_a_probe_that_cannot_run_is_never_counted_as_protection(self):
+        """An `n/a` probe proves nothing, so it must not be reported as
+        blocked or masked. This is the property the test above gives up by
+        allowing `n/a`, pinned separately."""
+        from leakbench import harness
+        results = harness.run("stuntkey-hook")
+        na = [r.probe_id for r in results if r.status == "n/a"]
+        scored = [r.probe_id for r in results if r.status in ("blocked", "masked")]
+        self.assertFalse(set(na) & set(scored),
+                         "a probe is counted both unrunnable and protected")
 
     def test_the_probe_count_never_shrinks(self):
         from leakbench import loader
