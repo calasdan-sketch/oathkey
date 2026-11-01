@@ -222,6 +222,118 @@ class TestRedaction(NoNetwork):
         self.assertNotIn("_value", json.dumps(data))
 
 
+# made up, and in pieces so this file holds no key-shaped text of its own
+BARE_HEX = "a3f9c1d2e4b5a697" + "8f0e1d2c3b4a5968" + "7766554433221100" + "ffeeddccbbaa9988"
+
+
+class TestBareToken(NoNetwork):
+    """A credential alone on a line, matching no vendor format and with no
+    NAME= beside it. Found silently passed over in 0.9.0: a live 64-character
+    bearer token in a file named `.token` gave `findings: 0` and the human
+    report said "No keys found in files an AI agent can read."."""
+
+    def test_a_dot_token_file_of_64_hex_characters_is_found(self):
+        write(self.root, ".token", BARE_HEX)
+        result = scan_mod.scan_path(self.root, CATALOG)
+        self.assertEqual([(f.file, f.rule) for f in result.findings],
+                         [(".token", "bare-token")])
+        self.assertEqual(scan_mod.exit_code(result, "any"), 1)
+
+    def test_the_value_is_still_never_printed(self):
+        write(self.root, ".token", BARE_HEX)
+        for flag in ([], ["--json"], ["--sarif"]):
+            code, out, err = run_cli("scan", self.root, *flag)
+            self.assertEqual(code, 1)
+            self.assertNotIn(BARE_HEX, out + err)
+            self.assertNotIn(BARE_HEX[4:-2], out + err)
+
+    def test_the_format_is_reported_as_a_guess_and_never_sent(self):
+        f = scan_text(BARE_HEX + "\n")[0]
+        self.assertEqual((f.confidence, f.provider, f.can_validate),
+                         ("guess", None, False))
+        self.assertTrue(f.skip_reason)
+
+    def test_bare_jwt_and_base64_tokens_are_found(self):
+        for value in ("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhYmMifQ.Zm9vYmFyYmF6cXV4MTIzNA",
+                      "aGVsbG9fd29ybGRfdGhpc19pc19hX3NlY3JldDEyMzQ1Ng==",
+                      '  "' + BARE_HEX + '",'):
+            self.assertEqual(len(scan_text(value + "\n")), 1, value)
+
+    def test_a_line_with_anything_else_on_it_is_not_a_bare_token(self):
+        # the other rules own those lines; this one must not double-report
+        self.assertEqual([f.rule for f in scan_text(f"API_KEY={GENERIC}\n")],
+                         ["named-assignment"])
+        self.assertEqual([f.rule for f in scan_text(f"{OPENAI}\n")],
+                         ["recipe-pattern"])
+
+    def test_ordinary_lone_lines_are_not_keys(self):
+        for text in ("The quick brown fox jumps over the lazy dog, honestly.",
+                     "your_key_here_please_replace_me_now", "x" * 30,
+                     "db-primary.internal.example.org.uk",
+                     "/etc/some/long/path/to/a/file.json",
+                     "AUTH0_CLIENT_SECRET_VALUE_NAME_X",
+                     "hf_xet-1.2.0-cp37-abi3-manylinux1",
+                     "get_password_from_environment_now",
+                     "d41d8cd98f00b204e9800998ecf8427ed41d8cd9  archive.tar.gz",
+                     '    "integrity": "sha512-aGVsbG9fd29ybGRfdGhpc19pc19hX",'):
+            self.assertEqual(scan_text(text + "\n"), [], text)
+
+    def test_a_lone_file_name_is_not_a_key(self):
+        # a list of files on a line each (SOURCES.txt, MANIFEST.in, .gitignore)
+        # is long and mixed enough to pass for a credential; the extension
+        # decides. A real key may hold "/", so "/" alone cannot decide.
+        for path in ("tests/test_round10_fixes.py", "stuntkey.egg-info/SOURCES.txt",
+                     "src/components/Button/index.module.scss",
+                     "build/release/linux-x86_64/libfoo.so",
+                     "assets/img/hero-banner-2x.png", "docs/THREAT_MODEL.md",
+                     "a/very/long/path/to/some/file.yaml"):
+            self.assertEqual(scan_text(path + "\n"), [], path)
+
+    def test_a_key_containing_slashes_is_still_found(self):
+        self.assertEqual(
+            [f.rule for f in scan_text("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEYX\n")],
+            ["bare-token"])
+
+    def test_a_certificate_body_is_not_reported_line_by_line(self):
+        body = "aGVsbG9fd29ybGRfdGhpc19pc19hX3NlY3JldDEyMzQ1Ng==\n" * 4
+        text = "-----BEGIN CERTIFICATE-----\n" + body + "-----END CERTIFICATE-----\n"
+        self.assertEqual(scan_text(text), [])
+
+
+class TestHonestScope(NoNetwork):
+    """A clean result must say what it did not look at."""
+
+    def test_files_passed_over_by_default_are_counted_and_named(self):
+        write(self.root, "README.md", "nothing here\n")
+        write(self.root, "src/app.py", "print('hi')\n")
+        result = scan_mod.scan_path(self.root, CATALOG)
+        self.assertEqual(result.not_considered, 2)
+        self.assertIn("were NOT looked at", scan_mod.render_text(result))
+        self.assertIn("--all", scan_mod.render_text(result))
+        self.assertEqual(scan_mod.to_json(result)["files_not_considered"], 2)
+
+    def test_the_headline_count_survives_the_passed_over_note(self):
+        # the note must not displace "Found N keys": they are separate lines
+        write(self.root, ".token", BARE_HEX)
+        write(self.root, "README.md", "nothing here\n")
+        text = scan_mod.render_text(scan_mod.scan_path(self.root, CATALOG))
+        self.assertIn("Found 1 key an AI agent can read", text)
+        self.assertIn("NOT looked at", text)
+
+    def test_with_all_nothing_is_passed_over(self):
+        write(self.root, "README.md", "nothing here\n")
+        result = scan_mod.scan_path(self.root, CATALOG, everything=True)
+        self.assertEqual(result.not_considered, 0)
+        self.assertNotIn("were NOT looked at", scan_mod.render_text(result))
+
+    def test_credential_filenames_are_scanned_without_all(self):
+        for rel in (".token", ".secret", ".npmrc", ".netrc", ".pypirc",
+                    "sub/app.token", ".git-credentials"):
+            write(self.root, rel, f"X_API_KEY={GENERIC}\n")
+        result = scan_mod.scan_path(self.root, CATALOG)
+        self.assertEqual(len(result.findings), 7, result.findings)
+
+
 class TestWhichFiles(NoNetwork):
     def test_agent_files_are_scanned_and_others_not(self):
         key = f"X_API_KEY={GENERIC}\n"

@@ -52,7 +52,31 @@ class DocsMatch(unittest.TestCase):
 
     def test_readme_front_page(self):
         text = _read("README.md")
-        self.assertIn("Let your AI use your API keys through stuntkey without holding them.", text)
+        # The hero sells the prevention people are buying ("stop my agent
+        # leaking my keys"), in the words they use for it. It used to sell the
+        # capability ("let your AI use your keys"), which is a builder's
+        # framing nobody searches for.
+        self.assertIn("Keep your API keys out of your coding agent's context.", text)
+        self.assertIn("never sees the key", text)
+
+    def test_readme_leads_with_evidence_not_an_apology(self):
+        """The front page must show the benchmark, and must not open with the
+        no-review disclaimer. That sentence is true and stays in SECURITY.md,
+        but as the hero it asks a reader to discount the tool before they have
+        seen what it does. A runnable benchmark is the stronger claim: an audit
+        is a stranger's opinion, `python -m leakbench` is a thing you run."""
+        readme = _read("README.md")
+        security = _read("SECURITY.md")
+        self.assertIn("python -m leakbench", readme)
+        self.assertIn("not independently security-reviewed", security)
+        hero = readme.split("## ")[0]
+        self.assertNotIn("not independently security-reviewed", hero)
+        # The gaps must be named on the front page, not just the wins.
+        for gap in ("node-prints-process-env", "script-reads-env-file"):
+            self.assertIn(gap, readme, f"the front page must name the gap {gap}")
+
+    def test_readme_front_page_still_has_the_install_path(self):
+        text = _read("README.md")
         self.assertIn("Need pipx? https://pipx.pypa.io", text)
         self.assertIn("read-only", text)
         self.assertIn("unless you agree to the fallback", text)

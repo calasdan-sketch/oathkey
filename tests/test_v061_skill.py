@@ -55,7 +55,10 @@ class Skill(unittest.TestCase):
             self.skipTest("no symlink")
         with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as other:
             os.makedirs(os.path.join(home, ".claude"))
-            os.symlink(other, os.path.join(home, ".claude", "skills"))
+            try:
+                os.symlink(other, os.path.join(home, ".claude", "skills"))
+            except OSError:
+                self.skipTest("no symlink right")
             out = io.StringIO()
             self.assertEqual(skillcmd.cmd_skill(Args(), out, home=home), 1)
             self.assertIn("link", out.getvalue())

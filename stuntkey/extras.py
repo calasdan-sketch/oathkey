@@ -45,12 +45,19 @@ def add_parsers(sub) -> None:
                                        "and stuntkey's own self-attack test).")
     dc.add_argument("--json", action="store_true", help="Machine-readable output.")
 
-    ts = sub.add_parser("trust-server", help="Make a server trust this PC (makes an ssh "
-                                             "key, installs it, proves it works).")
+    # DEPRECATED, to be removed at 1.0: trust-server / deploy / remote.
+    # These make ssh keys and run commands on someone else's machine -- by far
+    # the largest attack surface in stuntkey -- for a capability nobody has
+    # asked for. Keeping it means every security review, and every future
+    # change to the broker, has to reason about remote execution too. The tool
+    # is for keeping credentials out of an agent's reach on THIS machine.
+    ts = sub.add_parser("trust-server", help="DEPRECATED (removed at 1.0). Make a server "
+                                             "trust this PC (makes an ssh key, installs "
+                                             "it, proves it works).")
     ts.add_argument("host", help="user@host")
 
-    dp = sub.add_parser("deploy", help="One step: trust the server, send the key, "
-                                       "git pull, optionally restart.")
+    dp = sub.add_parser("deploy", help="DEPRECATED (removed at 1.0). One step: trust the "
+                                       "server, send the key, git pull, optionally restart.")
     dp.add_argument("host", help="user@host")
     dp.add_argument("--service", default="github", help="Key to use (default github).")
     dp.add_argument("--dir", required=True, help="Repository folder on the server.")
@@ -178,7 +185,11 @@ def dispatch(args, catalog: dict):
         res = gitscan.doctor()
         print(_json.dumps(res, indent=2) if args.json else gitscan.format_doctor(res))
         return 0 if res["ok"] else 1
-    # remote, trust-server, deploy
+    # remote, trust-server, deploy -- DEPRECATED, removed at 1.0 (see add_parser above).
+    print("warning: `stuntkey " + cmd + "` is deprecated and will be removed in 1.0. "
+          "It runs commands on another machine, which is the largest attack surface "
+          "here and is outside what stuntkey is for. Open an issue if you rely on it.",
+          file=sys.stderr)
     from . import remote as remote_mod
     try:
         if cmd == "trust-server":

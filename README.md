@@ -1,11 +1,33 @@
 # stuntkey
 
-**Let your AI use your API keys through stuntkey without holding them.**
+**Keep your API keys out of your coding agent's context.** Your agent calls the
+API; it never sees the key. A leaked transcript leaks nothing.
 
-> **Beta: not independently security-reviewed yet. Use at your own risk; MIT, no warranty.**
+Secretless credential brokering for AI coding agents, plus a scanner for keys
+that have already leaked into the files your agent reads.
+
+### Measured, not asserted
+
+`leakbench` is a vendor-neutral benchmark of 61 ways an AI coding agent leaks a
+credential — reading `.env`, dumping the environment, printing a traceback,
+following an injected instruction. Run it yourself: `python -m leakbench`.
+
+| Protection | blocked | masked | leaked |
+|---|---|---|---|
+| nothing | 0 | 0 | **54** |
+| stuntkey | **44** | 12 | **5** |
+
+**The 5 stuntkey does not stop**, named rather than hidden:
+`node-prints-process-env`, `script-prints-environ`, `script-reads-env-file`,
+`runaway-loop-no-cap`, `unbounded-retry` — a program you wrote, run by the
+agent, printing its own environment. No hook can see inside that.
+
+Threat model: [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md). Known gaps and
+limits: [SECURITY.md](SECURITY.md) — including that stuntkey has not had a paid
+external security review, and what we do instead.
 
 - The key sits in your computer's own keychain. When your AI needs an API, it asks stuntkey to make the call, and stuntkey adds the key itself.
-- Replies are cleaned of the key. Anything other than a read (GET) waits for your click. Every call is logged.
+- Replies are cleaned of the key. In a brokered call, anything other than a read (GET) waits for your click. Every call is logged.
 - Plain Python, no extra packages. No account, no server, no cloud.
 - Formerly OathKey (and before that SafeEasyAPI).
 - Home page and docs: https://calasautomations.com/devtools/stuntkey/
@@ -38,7 +60,7 @@ Asking stuntkey to make a call works when the AI talks to stuntkey (through MCP 
 stuntkey proxy -- python app.py
 ```
 
-The program gets `OPENAI_BASE_URL`, `ANTHROPIC_BASE_URL`, `GROQ_BASE_URL` and `TOGETHER_BASE_URL` pointing at a local stuntkey address on this computer, and its `*_API_KEY` is a throwaway password for that address, not your key. stuntkey adds the real key on the way out and scrubs it from the answers. If stuntkey stops, the program's calls fail instead of going out on their own. `--print-env` prints the variables for a tool you start yourself. There is no certificate trickery: this works only for SDKs that let you change their base address (OpenAI, Anthropic, Groq, Together); other vendors stay on brokered calls.
+The program gets `OPENAI_BASE_URL`, `ANTHROPIC_BASE_URL`, `GROQ_BASE_URL` and `TOGETHER_BASE_URL` pointing at a local stuntkey address on this computer, and its `*_API_KEY` is a throwaway password for that address, not your key. stuntkey adds the real key on the way out and scrubs it from the answers. If stuntkey stops, the program's calls fail instead of going out on their own. `--print-env` prints the variables for a tool you start yourself. There is no certificate trickery: this works only for SDKs that let you change their base address (OpenAI, Anthropic, Groq, Together); other vendors stay on brokered calls. Proxy mode does **not** ask for a click per call, unlike a brokered call: a chat prompt is far too long for anyone to read in a confirmation window. Instead it sends `POST` only to the usual AI endpoints (chat, responses, messages, embeddings) and refuses every other write unless an `stuntkey.policy` file you approved allows it. Streamed answers get the key-scrubber but not the whole-body disguise check a brokered call adds.
 
 For other programs, `stuntkey run openai -- python app.py` puts the key in that one program's environment only and scrubs it from the program's output. That program does see the key, so use `run` yourself; do not hand it to an AI that can run shell commands.
 

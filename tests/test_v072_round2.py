@@ -561,7 +561,10 @@ class TestWindowConsentLifecycle(base.Base):
         w = Window(False)
         mgr = self.mgr_with(w)
         deep = os.path.join(self.proj, *["d" * 20] * 12)
-        os.makedirs(deep)
+        try:
+            os.makedirs(deep)
+        except OSError:
+            self.skipTest("this file system cannot hold a path that deep")
         mgr.start("github", CATALOG["github"], deep)
         self.assertTrue(wait_for(lambda: w.asked))
         text = w.asked[0][1]
