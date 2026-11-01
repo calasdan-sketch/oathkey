@@ -25,7 +25,10 @@ What it does, in order of how careful it has to be:
 Detection uses (a) the key format of each built-in recipe, (b) a short list
 of well-known key prefixes for services that have no recipe, (c) NAME=value
 where NAME ends in KEY, TOKEN, SECRET or PASSWORD and the value looks random,
-(d) `Bearer <token>`, and (e) a password inside a connection URL.
+(d) `Bearer <token>`, (e) a password inside a connection URL, and (f) a line
+that is nothing but one high-entropy token (a .token or .secret file, or a
+credential pasted on a line of its own), which belongs to no known service
+and is therefore reported as a guess.
 Placeholders ("your_key_here", "xxxx", "<token>", "example") are ignored.
 """
 
@@ -84,6 +87,15 @@ AGENT_FILES = frozenset({
     "claude.md", "claude.local.md", "agents.md", "gemini.md", ".cursorrules",
     ".windsurfrules", ".mcp.json",
 })
+# Files whose whole purpose is to hold a credential. An agent reads one of
+# these as readily as CLAUDE.md, so the default scan looks at them too: a key
+# in a file named .token is exactly what this tool exists to catch.
+CREDENTIAL_FILES = frozenset({
+    ".token", ".secret", ".secrets", ".netrc", "_netrc", ".npmrc", ".pypirc",
+    ".pgpass", ".git-credentials", ".dockercfg", "credentials",
+    "credentials.json", "client_secret.json", "service-account.json",
+})
+CREDENTIAL_SUFFIXES = (".token", ".secret", ".credentials")
 AGENT_DIRS = frozenset({".claude"})
 
 SARIF_SCHEMA = "https://json.schemastore.org/sarif-2.1.0.json"
@@ -288,6 +300,25 @@ BEARER_RE = re.compile(
 URL_PASSWORD_RE = re.compile(
     r"""(?<![A-Za-z0-9+.\-])[A-Za-z][A-Za-z0-9+.\-]{1,20}://"""
     r"""(?P<user>[^\s:/@'"<>]{1,100}):(?P<password>[^\s@/'"<>]{3,200})@""")
+# A line holding ONE token and nothing else: the whole content of a .token or
+# .secret file, or a credential pasted on a line of its own. There is no
+# vendor prefix and no NAME= to go by, so such a finding is always a guess and
+# can never be checked against a service.
+BARE_MIN = 24
+# "=" only as base64 padding at the END: with it allowed in the middle, a whole
+# NAME=value line is one "token" and the rule above would be reported twice.
+BARE_TOKEN_RE = re.compile(r"[A-Za-z0-9_\-+/.~]{%d,400}={0,2}" % BARE_MIN)
+# A lone line that is a FILE NAME, not a key. Lists of files on a line each
+# (SOURCES.txt, MANIFEST.in, a .gitignore) are otherwise long, mixed-case
+# enough and random-looking enough to pass for credentials. A real key may
+# contain "/" (an AWS secret does), so the file extension is what decides.
+BARE_PATH_RE = re.compile(
+    r"(?i)\.(?:py[icdw]?|pyi|js|mjs|cjs|jsx|ts|tsx|json|jsonc|md|rst|txt|log|"
+    r"ya?ml|toml|ini|cfg|conf|lock|properties|html?|css|scss|less|svg|xml|csv|"
+    r"tsv|sh|bash|zsh|fish|bat|cmd|ps1|psm1|rs|go|java|kt|rb|php|pl|lua|swift|"
+    r"[ch]|[ch]pp|cc|hh|cs|m|mm|sql|png|jpe?g|gif|ico|webp|pdf|zip|gz|tgz|bz2|"
+    r"xz|tar|whl|egg|jar|so|dylib|dll|exe|bin|dat|db|sqlite3?|bak|tmp|orig|"
+    r"patch|diff|in|cfn|tf|tfvars|proto|ipynb|map|min|d)$")
 
 
 def build_rules(catalog: dict) -> list[Rule]:
@@ -508,12 +539,20 @@ def scan_text(text: str, rel: str, rules: list[Rule], catalog: dict,
     budget = budget or Budget(FILE_SECONDS)
     findings: list[Finding] = []
     lines = text.splitlines()
+    # A PEM block's body is line after line of base64; it is already reported
+    # once by its header, so bare-token lines are not looked for in such a file.
+    # ponytail: whole file, not the block's line range - a certificate would
+    # otherwise be reported once per body line. The cost is that a bare token
+    # sitting beside a PEM block in the same file is missed; track the BEGIN/END
+    # range per line if that turns up in practice.
+    pem = "-----BEGIN " in text
     for number, raw in enumerate(lines, 1):
         if budget.expired():
             break
         nxt = lines[number] if number < len(lines) else ""
         room = MAX_FINDINGS_PER_FILE - len(findings)
-        found = _scan_line(raw, nxt, number, rel, rules, catalog, words, budget, room)
+        found = _scan_line(raw, nxt, number, rel, rules, catalog, words, budget, room,
+                           pem=pem)
         findings.extend(found)
         if len(found) >= room:
             budget.notes.append(f"more than {MAX_FINDINGS_PER_FILE} keys in this "
@@ -524,7 +563,7 @@ def scan_text(text: str, rel: str, rules: list[Rule], catalog: dict,
 
 def _scan_line(raw: str, nxt: str, number: int, rel: str, rules: list[Rule],
                catalog: dict, words: dict[str, str], budget: Budget,
-               room: int = MAX_FINDINGS_PER_FILE) -> list[Finding]:
+               room: int = MAX_FINDINGS_PER_FILE, pem: bool = False) -> list[Finding]:
     out: list[Finding] = []
     n = len(raw)
     if n < 8:
@@ -682,6 +721,25 @@ def _scan_line(raw: str, nxt: str, number: int, rel: str, rules: list[Rule],
                     m.start("value"), m.end("value"), matches_format,
                     "" if matches_format else
                     "it does not have this service's key format, so it was not sent")
+
+    # Last: a line that is nothing but one high-entropy token. Every rule
+    # above had its chance, so this only fires on a credential that matches no
+    # vendor format and has no name beside it - a .token file, a bare bearer
+    # token. Without a name or a prefix the service cannot be known, so it is
+    # reported as a guess and is never sent anywhere.
+    if not pem and len(out) < room:
+        value = raw.strip().strip("\"'`,;")
+        start = raw.find(value) if value else -1
+        if (start >= 0 and BARE_TOKEN_RE.fullmatch(value)
+                and free(start, start + len(value))
+                and not VERSIONED_RE.search(value)
+                and not HOSTNAME_RE.match(value)
+                and not BARE_PATH_RE.search(value)
+                and _secret_value_ok(value)):
+            add("bare-token", "guess", None,
+                "Unrecognised key (a line with nothing else on it)",
+                start, start + len(value), False,
+                "the service it belongs to is not known, so it cannot be checked")
     return out
 
 
@@ -693,8 +751,9 @@ class Skipped:
 
 
 def _is_agent_name(name: str) -> bool:
-    return name in AGENT_FILES or name == ".env" or name.startswith(".env.") \
-        or name.endswith(".env")
+    return name in AGENT_FILES or name in CREDENTIAL_FILES or name == ".env" \
+        or name.startswith(".env.") or name.endswith(".env") \
+        or name.endswith(CREDENTIAL_SUFFIXES)
 
 
 def _is_agent_path(parts: tuple[str, ...]) -> bool:
@@ -770,14 +829,21 @@ def read_text_safely(path: str, root_real: str,
     return data.decode("utf-8-sig", errors="replace"), None
 
 
-def collect_files(root: str, everything: bool = False) -> tuple[list[str], list[Skipped]]:
-    """Files worth reading under `root`, nearest first. Only files that will
-    be READ count toward the limits (an agent file hidden behind 50,000 empty
-    files is still found). Folders that are links, or that lead outside the
-    root (a Windows junction), are never entered. Every limit that stops the
-    walk early is reported as an incomplete Skipped note."""
+def collect_files(root: str, everything: bool = False
+                  ) -> tuple[list[str], list[Skipped], int]:
+    """(files worth reading under `root`, notes, how many files were passed
+    over), nearest first. Only files that will be READ count toward the limits
+    (an agent file hidden behind 50,000 empty files is still found). Folders
+    that are links, or that lead outside the root (a Windows junction), are
+    never entered. Every limit that stops the walk early is reported as an
+    incomplete Skipped note.
+
+    Without `everything` only an agent's instruction, settings and credential
+    files are queued; the third value counts the rest, so a caller can say how
+    much it did not look at instead of calling the result clean."""
     files: list[str] = []
     notes: list[Skipped] = []
+    passed_over = 0
     root_real = os.path.realpath(root)
     seen_dirs = {root_real}
     deadline = time.monotonic() + WALK_SECONDS
@@ -789,11 +855,11 @@ def collect_files(root: str, everything: bool = False) -> tuple[list[str], list[
         if time.monotonic() > deadline:
             notes.append(Skipped(".", f"stopped after {WALK_SECONDS} seconds of looking "
                                       f"for files", True))
-            return files, notes
+            return files, notes, passed_over
         dirs_opened += 1
         if dirs_opened > MAX_DIRS:
             notes.append(Skipped(".", f"stopped after opening {MAX_DIRS} folders", True))
-            return files, notes
+            return files, notes, passed_over
         try:
             entries = []
             with os.scandir(directory) as it:
@@ -801,11 +867,11 @@ def collect_files(root: str, everything: bool = False) -> tuple[list[str], list[
                     raw_entries += 1
                     if raw_entries > MAX_ENTRIES:
                         notes.append(Skipped(".", f"stopped after looking at {MAX_ENTRIES} entries", True))
-                        return files, notes
+                        return files, notes, passed_over
                     if raw_entries % 20000 == 0 and time.monotonic() > deadline:
                         notes.append(Skipped(".", f"stopped after {WALK_SECONDS} seconds of "
                                                   f"looking for files", True))
-                        return files, notes
+                        return files, notes, passed_over
                     entries.append(entry)
             entries.sort(key=lambda e: e.name)
         except OSError:
@@ -839,9 +905,11 @@ def collect_files(root: str, everything: bool = False) -> tuple[list[str], list[
                 if len(files) >= MAX_CANDIDATES:
                     notes.append(Skipped(".", f"stopped after queueing {MAX_CANDIDATES} "
                                               f"files to read", True))
-                    return files, notes
+                    return files, notes, passed_over
                 files.append(entry.path)
-    return files, notes
+            else:
+                passed_over += 1
+    return files, notes, passed_over
 
 
 @dataclasses.dataclass
@@ -852,6 +920,7 @@ class ScanResult:
     skipped: list[Skipped]
     validated: bool = False
     kind: str = "agent"         # "agent" files, or a web "bundle"
+    not_considered: int = 0     # files the default scan never queued (no --all)
 
     @property
     def incomplete(self) -> bool:
@@ -870,10 +939,10 @@ def scan_path(target: str, catalog: dict, everything: bool = False) -> ScanResul
     target = os.path.abspath(target)
     if os.path.isdir(target):
         root = target
-        files, skipped = collect_files(root, everything)
+        files, skipped, not_considered = collect_files(root, everything)
     else:
         root = os.path.dirname(target)
-        files, skipped = [target], []
+        files, skipped, not_considered = [target], [], 0
     root_real = os.path.realpath(root)
     rules = build_rules(catalog)
     words = _name_tokens(catalog)
@@ -907,7 +976,8 @@ def scan_path(target: str, catalog: dict, everything: bool = False) -> ScanResul
                                         f"seconds; the rest of this file was not looked at", True))
         for note in dict.fromkeys(budget.notes):
             skipped.append(Skipped(rel, note, True))
-    return ScanResult(root, scanned, findings, skipped)
+    return ScanResult(root, scanned, findings, skipped,
+                      not_considered=not_considered)
 
 
 # ----------------------------------------------------------------- validation
@@ -1106,13 +1176,20 @@ def render_text(result: ScanResult) -> str:
                    if result.incomplete else
                    "  No secret keys found in the files a browser downloads."
                    if bundle else
-                   "  No keys found in files an AI agent can read.")
+                   "  No keys found in the agent instruction, settings, .env "
+                   "and credential files that were scanned.")
     elif bundle:
         out.append(f"  Found {n} key{'s' if n != 1 else ''} in the files your "
                    f"site sends to every visitor's browser.")
     else:
         out.append(f"  Found {n} key{'s' if n != 1 else ''} an AI agent can "
                    f"read. Anything it reads can end up in its memory and logs.")
+    if result.not_considered:
+        out.append(f"  {result.not_considered} other file"
+                   f"{'s were' if result.not_considered != 1 else ' was'} NOT "
+                   f"looked at: by default only an AI agent's instruction, "
+                   f"settings, .env and credential files are scanned. "
+                   f"Run with --all to scan every file.")
     for f in result.findings:
         out.append(f"\n  {printable(f.file)}:{f.line}   "
                    f"{printable(f.provider_name, words=True)}   {f.redacted}   "
@@ -1141,6 +1218,7 @@ def to_json(result: ScanResult) -> dict:
         "version": __version__,
         "root": result.root,
         "files_scanned": result.files_scanned,
+        "files_not_considered": result.not_considered,
         "validated": result.validated,
         "incomplete": result.incomplete,
         "findings": [{

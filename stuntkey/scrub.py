@@ -191,16 +191,37 @@ def _extra_forms(secret: str) -> list[str]:
     return out
 
 
+PARTIAL_RUN = 32     # letters and digits of a secret in a row that count as a leak
+PARTIAL_OFFSETS = 64  # most start offsets tried per secret, whatever its length
+
+
 def loosely_contains(text: str, secrets) -> bool:
     """True if, after undoing common disguises, any secret (in a plain,
     base64 or hex form) is still in the text. The caller then withholds the
-    whole text instead of trying to patch it."""
+    whole text instead of trying to patch it.
+
+    A long enough PIECE of a secret counts too: an API that echoes half a key
+    has still given most of it away, and Scrubber only removes whole forms. The
+    run must be PARTIAL_RUN characters, far longer than the 6 to 12 character
+    hint vendors show on purpose ("sk-...Zk"), so a key hint does not trip it."""
     text = text.replace("\x00", "")
     norm = _normalize(text)
     squashed = _squash(norm)
     for s in secrets:
         if len(s) < MIN_LEN:
             continue
+        whole = _squash(s)
+        if len(whole) > PARTIAL_RUN:
+            # Every start offset for a key of ordinary length (step stays 1
+            # below ~2 kB), but never more than PARTIAL_OFFSETS searches over a
+            # body the other end chose: a very long secret must not turn one
+            # reply into minutes of scanning. A bigger step only means a run
+            # has to be that much longer than PARTIAL_RUN to be noticed.
+            span = len(whole) - PARTIAL_RUN + 1
+            step = max(1, -(-span // PARTIAL_OFFSETS))
+            if any(whole[i:i + PARTIAL_RUN] in squashed
+                   for i in range(0, span, step)):
+                return True
         for f in forms(s):
             try:
                 needle = _normalize(f.decode("utf-8"))

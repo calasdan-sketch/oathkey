@@ -35,7 +35,10 @@ class EnvFileRules(unittest.TestCase):
         if not hasattr(os, "symlink"):
             self.skipTest("no symlink")
         with tempfile.TemporaryDirectory() as root, tempfile.TemporaryDirectory() as other:
-            os.symlink(other, os.path.join(root, "cfg"))
+            try:
+                os.symlink(other, os.path.join(root, "cfg"))
+            except OSError:
+                self.skipTest("no symlink right")
             with self.assertRaises(manifest.ManifestError):
                 manifest.env_file_in(root, man(env_file="cfg/.env"))
             self.assertTrue(manifest.env_file_in(root, man(env_file=".env")).endswith(".env"))

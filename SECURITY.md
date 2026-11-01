@@ -4,10 +4,32 @@
 
 stuntkey is built so an AI agent can use your API keys without being handed them. It reduces risk. It does not remove it. No independent security review has been done yet.
 
+### What we do instead of a paid audit
+
+A paid external review is not affordable for a project at this stage, so rather
+than claim a review that has not happened, the evidence is published and
+runnable:
+
+- **A threat model with links to the code** — [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).
+- **`leakbench`**, a vendor-neutral benchmark of 61 ways an agent leaks a
+  credential. Run it against stuntkey, against no protection, or against
+  another tool: `python -m leakbench`. It reports **5 leaks stuntkey cannot
+  stop**, by name, rather than scoring only what it passes.
+- **`stuntkey selftest`**, which attacks stuntkey's own rules and currently
+  reports 77 of 77 simulated attacks stopped. Note what it does *not* prove:
+  the attacks are simulated against a pretend server, so it does not exercise
+  the live network layer.
+- **A test suite that encodes its own known gaps as passing tests**, so a gap
+  cannot quietly close over or widen without a test changing.
+
+An audit is a stranger's opinion you have to take on trust. The above is
+something you can run. It is not a substitute for a review, and this section
+will say so until one happens.
+
 ## What it defends against
 - **An AI reading a key out of chat, a prompt or tool output.** The tool adds the key itself. Replies and program output are scrubbed for the key in many disguises (encoded, escaped, split by spaces). If a disguised key is still detected, the whole reply is withheld.
 - **A prompt-injected AI sending your key to another server.** The destination comes from the saved service profile, never from the AI. Private and internal addresses are refused, the connection goes to the address we checked, redirects are not followed, proxies are ignored, and odd path tricks are refused.
-- **An AI making changes you did not approve.** Anything other than a read asks you first, in a pop-up window (or, with no window available, on the console with a code shown only on screen). The pop-up shows the method, address, every query parameter and the whole body (anything too long to show in full is refused). Three refusals stop further requests. The call limit and the three-refusal stop are counted separately by each running stuntkey program (MCP server, web door, `call`), not across all of them.
+- **An AI making changes you did not approve.** In a brokered call (the MCP tool, `call`), anything other than a read asks you first, in a pop-up window (or, with no window available, on the console with a code shown only on screen). The pop-up shows the method, address, every query parameter and the whole body (anything too long to show in full is refused). Three refusals stop further requests. The call limit and the three-refusal stop are counted separately by each running stuntkey program (MCP server, web door, `call`), not across all of them.
 - **Accidental or casual edits to the activity log.** Each entry carries the hash of the one before it (`stuntkey audit verify`).
 - **An AI turning a harmless-looking read into new credentials.** For AWS, only plain look-ups are allowed (`GetCallerIdentity` for STS; `Describe*`/`List*` elsewhere); actions that create keys (`GetSessionToken`, `AssumeRole`, ...) are refused.
 - **A request padded to hide what it does.** The approval window lists every query parameter and shows the whole body with its size and hash; a query value over 200 characters or a body over 400 bytes is refused, never shown cut off. The pop-up program is found by its full system path, never through PATH or the current folder.
@@ -31,6 +53,8 @@ stuntkey is built so an AI agent can use your API keys without being handed them
 
 ## Known limits
 These are known and not fixed. They are listed so you can judge for yourself.
+- **`proxy` does not ask per call.** A chat prompt is far too long to review in a window, so proxy mode sends `POST` to the usual AI endpoints (chat, responses, messages, embeddings) without asking, and refuses every other write unless an `stuntkey.policy` file you approved allows it. Its streamed answers get the key-scrubber but not the whole-body disguise check a brokered call adds. Brokered calls are the ones that ask.
+- **A short piece of a key echoed back is not caught.** The scrubber removes whole forms of the key, and the fail-closed check also withholds a reply holding 32 or more of the key's characters in a row. A shorter run (a vendor's own `sk-...Zk` style hint, which is meant to be public) is left alone, so a service that echoes only the first few characters of your key passes them through.
 - **A GET can read other secrets.** stuntkey hides the key it added, but a read-only call to a vendor's own endpoints (a settings, tokens or environment listing) can return other secrets, and those are not recognised. Use read-only, minimum-permission keys, and do not connect services whose reads expose secrets.
 - **The activity log is only tamper-evident against casual edits.** It has no secret key and nothing outside your account holds a copy, so someone running as you can rebuild it so that it verifies.
 - **The OAuth token fetch is not pinned to the address it checked** (see above). It is checked to be public, ignores proxies and never follows redirects, but a DNS answer could change between the check and the connection.

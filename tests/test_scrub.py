@@ -66,6 +66,27 @@ class RunScrubbedTest(unittest.TestCase):
         self.assertIn(b"[REDACTED]", out.getvalue())
 
 
+LONG = "sk-ant-" + "api03-ZmFrZWtleV9mb3JfdGVzdGluZw-9xQ2vB7nL"
+
+
+class PartialLeakTest(unittest.TestCase):
+    """Scrubber removes whole forms only. An API that echoes HALF a key has
+    still given most of it away, so the fail-closed check catches a long run
+    and the caller withholds the whole body."""
+
+    def test_a_long_run_of_the_key_is_caught(self):
+        for piece in (LONG[:36], LONG[-36:], LONG[6:42]):
+            self.assertTrue(scrub.loosely_contains(f"echo: {piece}", [LONG]), piece)
+
+    def test_a_vendors_own_short_hint_is_not_caught(self):
+        for hint in ("sk-ant-a...7nL", "key: sk-ant-api03...", LONG[:12]):
+            self.assertFalse(scrub.loosely_contains(hint, [LONG]), hint)
+
+    def test_an_ordinary_answer_is_not_caught(self):
+        self.assertFalse(scrub.loosely_contains(
+            '{"ok":true,"model":"an-ordinary-model-name-here"}', [LONG]))
+
+
 class SshArgsTest(unittest.TestCase):
     def test_safe_options_pass(self):
         self.assertEqual(remote.check_ssh_args(["-p", "2222", "-o", "ConnectTimeout=5"]),

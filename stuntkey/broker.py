@@ -28,7 +28,7 @@ import urllib.parse
 import urllib.request
 
 from . import validate as _v
-from .scrub import Scrubber, loosely_contains
+from .scrub import Scrubber, loosely_contains, scrub_text
 
 MAX_BODY_OUT = 1_000_000      # most we read back
 MAX_BODY_IN = 256_000         # most the AI may send
@@ -338,14 +338,14 @@ def call(recipe: dict, values: dict, method: str, path: str,
     policy = policy or Policy()
     method = str(method).upper()
     if method not in READ_METHODS | WRITE_METHODS:
-        _log(audit, recipe, method, "?", _clean(path), 0, 0, "refused")
+        _log(audit, recipe, values, method, "?", _clean(path), 0, 0, "refused")
         raise BrokerError("method not supported", 5)
     policy.count()          # every attempt counts, refused ones included
     try:
         host, url = build_url(recipe, path, query)
         policy.gate(recipe["service"], method, path)
     except BrokerError:
-        _log(audit, recipe, method, "?", _clean(path), 0, 0, "refused")
+        _log(audit, recipe, values, method, "?", _clean(path), 0, 0, "refused")
         raise
     auth_type = (recipe.get("validate") or {}).get("auth", {}).get("type", "bearer")
     if method in WRITE_METHODS and auth_type == "aws_sigv4":
@@ -355,13 +355,13 @@ def call(recipe: dict, values: dict, method: str, path: str,
         try:
             check_sigv4_action(recipe, url)
         except BrokerError:
-            _log(audit, recipe, method, host, _clean(path), 0, 0, "refused")
+            _log(audit, recipe, values, method, host, _clean(path), 0, 0, "refused")
             raise
 
     data = None
     if body is not None:
         if method in READ_METHODS:
-            _log(audit, recipe, method, host, path, 0, 0, "refused")
+            _log(audit, recipe, values, method, host, path, 0, 0, "refused")
             raise BrokerError("GET/HEAD may not have a body", 5)
         if isinstance(body, bytes):
             data = body
@@ -370,7 +370,7 @@ def call(recipe: dict, values: dict, method: str, path: str,
         else:
             data = json.dumps(body).encode()
         if len(data) > MAX_BODY_IN:
-            _log(audit, recipe, method, host, path, 0, 0, "refused")
+            _log(audit, recipe, values, method, host, path, 0, 0, "refused")
             raise BrokerError("request body too large", 5)
 
     # permission: writes need a grant or a person's yes
@@ -379,20 +379,20 @@ def call(recipe: dict, values: dict, method: str, path: str,
             try:
                 summary = describe(recipe, method, host, url, data)
             except BrokerError:
-                _log(audit, recipe, method, host, path, 0, 0, "refused")
+                _log(audit, recipe, values, method, host, path, 0, 0, "refused")
                 raise
             if len(summary) > MAX_REVIEW:
-                _log(audit, recipe, method, host, path, 0, 0, "refused")
+                _log(audit, recipe, values, method, host, path, 0, 0, "refused")
                 raise BrokerError(TOO_LONG, 5)
             if not policy.ask(summary):
-                _log(audit, recipe, method, host, path, 0, 0, "denied")
+                _log(audit, recipe, values, method, host, path, 0, 0, "denied")
                 raise BrokerError(NO_APPROVAL, 5)
         elif (recipe["service"], host) not in policy.approved_hosts:
             if policy.approve is not None:
                 if not policy.ask(f"First use of '{recipe['service']}' "
                                   f"(talks to {host}). Read-only requests will "
                                   "then be allowed this session."):
-                    _log(audit, recipe, method, host, path, 0, 0, "denied")
+                    _log(audit, recipe, values, method, host, path, 0, 0, "denied")
                     raise BrokerError(NO_APPROVAL, 5)
             policy.approved_hosts.add((recipe["service"], host))
 
@@ -410,11 +410,16 @@ def call(recipe: dict, values: dict, method: str, path: str,
             resolve_public(th.hostname, th.port or 443, resolver)
             token = _v._fetch_token(spec, _v._creds(creds), timeout, no_proxy=True)
         except BrokerError:
-            _log(audit, recipe, method, host, path, 0, 0, "refused")
+            _log(audit, recipe, values, method, host, path, 0, 0, "refused")
             raise
         except _v.ValidationError as e:
-            _log(audit, recipe, method, host, path, 0, 0, "network-error")
-            raise BrokerError(f"could not get a sign-in token: {e}", 5) from None
+            _log(audit, recipe, values, method, host, path, 0, 0, "network-error")
+            # validate.validate_key scrubs its own errors, but this calls
+            # _fetch_token directly, so do it here: a BrokerError reaches the
+            # AI, and its text must never hold the key (see BrokerError).
+            why = Scrubber([v for v in values.values()
+                            if isinstance(v, str)]).text(str(e))
+            raise BrokerError(f"could not get a sign-in token: {why}", 5) from None
     req = _v._build_request(spec, creds, token)       # builds GET + credential
     req.method = method
     if data is not None:
@@ -423,14 +428,14 @@ def call(recipe: dict, values: dict, method: str, path: str,
     try:
         ip = resolve_public(host, 443, resolver)
     except BrokerError:
-        _log(audit, recipe, method, host, path, 0, 0, "refused")
+        _log(audit, recipe, values, method, host, path, 0, 0, "refused")
         raise
 
     started = time.time()
     try:
         status, headers, raw = (send or _real_send)(req, ip, timeout)
     except BrokerError:
-        _log(audit, recipe, method, host, path, 0, 0, "network-error")
+        _log(audit, recipe, values, method, host, path, 0, 0, "network-error")
         raise
 
     from .caps import tokens_in
@@ -460,7 +465,7 @@ def call(recipe: dict, values: dict, method: str, path: str,
             if loosely_contains(val, secrets):
                 val = "[header withheld: it appears to contain the key in a disguised form]"
             keep[k] = val
-    _log(audit, recipe, method, host, path, status, len(raw), "ok",
+    _log(audit, recipe, values, method, host, path, status, len(raw), "ok",
          ms=int((time.time() - started) * 1000))
     return {"status": status, "headers": keep, "body": shown,
             "truncated": len(raw) > MAX_BODY_OUT}
@@ -468,12 +473,30 @@ def call(recipe: dict, values: dict, method: str, path: str,
 
 # ---- audit log (hash chained) -------------------------------------------------
 
-def _log(audit, recipe, method, host, path, status, size, result, ms=0):
+def _log(audit, recipe, values, method, host, path, status, size, result, ms=0):
     if audit is None:
         return
+    # The path is scrubbed like everything else that leaves this module. Query
+    # strings and bodies are excluded from the log and headers are scrubbed, so
+    # the path was the one field a secret could ride into ~/.stuntkey/audit.log
+    # on -- e.g. GET /user/<token> after a key leaked into a file the agent read,
+    # which is exactly the case `stuntkey scan` exists for. Writing it there put
+    # the secret in a NEW persistent place that owners are told to open and share
+    # when investigating an incident.
+    safe_path = _clean(path.split("?")[0], 200)
+    try:
+        secrets = [v for v in (values or {}).values() if isinstance(v, str) and v]
+        if secrets:
+            # Same two layers the response body gets: remove the known forms,
+            # and withhold entirely if a disguised form is still in there.
+            safe_path = scrub_text(safe_path, secrets)
+            if loosely_contains(safe_path, secrets):
+                safe_path = "[path withheld]"
+    except Exception:
+        safe_path = "[path withheld]"   # a scrubbing failure must never log the raw path
     try:
         audit.write({"service": recipe.get("service"), "method": method,
-                     "host": host, "path": _clean(path.split("?")[0], 200), "status": status,
+                     "host": host, "path": safe_path, "status": status,
                      "bytes": size, "result": result, "ms": ms})
     except (OSError, BrokerError):
         pass            # ready() already refused to act when the log is unwritable or busy
@@ -537,6 +560,25 @@ class AuditLog:
 
     _lock = threading.Lock()
 
+    # The log must be a real file, never a link.
+    #
+    # os.open(O_WRONLY|O_APPEND|O_CREAT) FOLLOWS a symlink, so anything able to
+    # write one file in ~/.stuntkey could point the log at /dev/null before the
+    # first call. An empty log yields n=0, no anchor is expected, and verify()
+    # returns (True, 0) -- it cannot tell "this log is a sink" from "this log is
+    # fine", which defeats "every call goes to a hash-chained append-only log".
+    # ledger.py:38 already guards its own index this way; this is the same guard.
+    # O_NOFOLLOW closes the check-to-open race where the platform has it
+    # (Windows does not, so there the islink() check stands alone).
+    _OPEN_FLAGS = (os.O_WRONLY | os.O_APPEND | os.O_CREAT
+                   | getattr(os, "O_NOFOLLOW", 0))
+
+    def _open_for_append(self) -> int:
+        if os.path.islink(self.path):
+            raise BrokerError("The activity log is a link, not a file, so "
+                              "nothing was sent. Remove it and try again.", 5)
+        return os.open(self.path, self._OPEN_FLAGS, 0o600)
+
     @property
     def anchor_path(self) -> str:
         return self.path + ".head"
@@ -548,7 +590,7 @@ class AuditLog:
     def ready(self) -> None:
         """Refuse to act if we could not record it afterwards."""
         try:
-            fd = os.open(self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+            fd = self._open_for_append()
             os.close(fd)
         except OSError:
             raise BrokerError("The activity log cannot be written, so "
@@ -644,7 +686,7 @@ class AuditLog:
     def _append(self, entry: dict, prev: str) -> str:
         entry = dict(entry, ts=int(time.time()), prev=prev)
         entry["hash"] = self._digest(entry)
-        fd = os.open(self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+        fd = self._open_for_append()
         try:
             os.write(fd, (json.dumps(entry, sort_keys=True) + "\n").encode())
             os.fsync(fd)

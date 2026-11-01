@@ -119,15 +119,30 @@ def make_proxy(catalog: dict, get_values, token: str, policy: broker.Policy,
                 self._forward(recipe, self.command, path, query)
             except broker.BrokerError as e:
                 self._fail(403 if e.code == 5 else 502, str(e))
-            except (ValueError, KeyError, TypeError):
+            except (ValueError, KeyError):
                 self._fail(400, "bad request")
+            except TypeError:
+                # A TypeError here is almost always OUR bug (a wrong call
+                # signature), not a malformed request. Catching it as 400 "bad
+                # request" is how a broken proxy ships looking healthy: a
+                # signature change once made every call -- including STOP
+                # kill-switch refusals -- return a generic 400, and the client
+                # blamed itself. Fail loudly as a server error instead, and say
+                # where to look.
+                self._fail(500, "stuntkey internal error; run `stuntkey selftest`")
+                raise
 
         do_GET = do_HEAD = do_POST = do_PUT = do_PATCH = do_DELETE = _handle
 
         def _forward(self, recipe, method, path, query):
             service = recipe["service"]
+            # Bound before the lambda so the closure can see it, and rebound at
+            # the get_values() call below. _log scrubs the path with these, so
+            # refusals that happen before a key is fetched log with none (there
+            # is no secret in play yet), and everything after logs scrubbed.
+            values = None
             log = lambda result, host="?", status=0, size=0, ms=0: broker._log(
-                audit, recipe, method, host, path, status, size, result, ms=ms)
+                audit, recipe, values, method, host, path, status, size, result, ms=ms)
             try:
                 host, url, body = self._check(recipe, method, path, query)
             except broker.BrokerError:
